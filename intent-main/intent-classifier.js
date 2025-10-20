@@ -26,7 +26,14 @@ classifier.addDocument('can I get a personal loan', 'loan');
 classifier.train()
 
 function ClassifyMessage (message){
-    return classifier.classify(message)
+    // return classifier.classify(message)
+    const classification = classifier.classify(message)
+    const top = classification[0]
+    if(!top) return "unknown"
+    if(top.value<0.6){
+        return "unknown"
+    }
+    return top.label
 }
 
 module.exports={ClassifyMessage}

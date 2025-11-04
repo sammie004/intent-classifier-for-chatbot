@@ -1,6 +1,7 @@
 const express = require("express")
 const bodyParser = require('body-parser')
 const app = express()
+app.use(express.json())
 // app.use(bodyParser)
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -14,6 +15,19 @@ const predict = require('./routes/intent-route')
 //     return  res.json({message:`this is the basic one`})
 // })
 app.use('/api',predict)
+// webhook
+app.post("/api/webhook", (req, res) => {
+  const { intent, user, message } = req.body;
+
+  if (intent === "lapo_query") {
+    res.json({
+      response: `Hello ${user}, I received your LAPO request about: "${message}". We'll help you find the nearest branch shortly!`
+    });
+  } else {
+    res.json({ response: `Webhook received intent: ${intent}, message: ${message}` });
+  }
+});
+
 const PORT = '3000'
 app.listen(PORT || `3000`,()=>{
     console.log(`the server is running on port ${PORT}`)

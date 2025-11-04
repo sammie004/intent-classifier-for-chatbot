@@ -155,7 +155,7 @@ async function Predict(message, user) {
     return {
       intent: "off_topic",
       confidence: 1,
-      response: `😅 Haha, I'm a LAPO banking assistant, not a sports, music, or trivia expert! But I *can* help you with your account, loans, transfers, or balances, ${user}.`,
+      response: `😅 Sorry,i don't think i can help you with that. But I *can* help you with your account, loans, transfers, or balances, ${user}.`,
     };
   }
 

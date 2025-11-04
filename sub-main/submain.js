@@ -80,12 +80,15 @@ async function callWebhook(intent, user, message) {
     } else {
       const text = await res.text();
       console.warn("⚠️ Webhook returned non-JSON:", text);
-      return { response: `🟢 Your LAPO request has been forwarded! Someone will assist you shortly, ${user}.` };
+      return {
+        response: `🟢 Your LAPO request has been forwarded! Someone will assist you shortly, ${user}.`,
+      };
     }
-
   } catch (err) {
     console.error(`❌ Webhook failed for "${intent}":`, err.message);
-    return { response: `🟢 Your LAPO request has been forwarded! Someone will assist you shortly, ${user}.` };
+    return {
+      response: `🟢 Your LAPO request has been forwarded! Someone will assist you shortly, ${user}.`,
+    };
   }
 }
 
@@ -110,13 +113,16 @@ async function fallbackAIResponse(message, user) {
 // 💬 Intent-specific replies
 function getResponseForIntent(intent, user) {
   const hour = new Date().getHours();
-  const greetingTime = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const greetingTime =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   switch (intent) {
     case "greeting":
       return `${greetingTime}, ${user}! 👋`;
     case "balance":
-      return `Your current account balance is ₦${(45000 + Math.floor(Math.random() * 5000)).toLocaleString()}. 💰`;
+      return `Your current account balance is ₦${(
+        45000 + Math.floor(Math.random() * 5000)
+      ).toLocaleString()}. 💰`;
     case "loan":
       return `LAPO offers personal and business loans with flexible repayment options. Would you like to begin your loan application, ${user}? 🏦`;
     case "transfer":
@@ -130,23 +136,45 @@ function getResponseForIntent(intent, user) {
 async function Predict(message, user) {
   const lowerMsg = preprocess(message);
 
-  // 1️⃣ LAPO-first handling with smart AI fallback
+  // 1️⃣ Banking relevance check
+  let isBankingRelated = true;
+  try {
+    const checkResponse = await cohere.chat({
+      model: "command-r-plus-08-2024",
+      message: `You are a LAPO banking assistant. Determine if the following message is related to banking or LAPO services. Respond only with "true" or "false": "${message}"`,
+      temperature: 0,
+    });
+
+    isBankingRelated = checkResponse.text.trim().toLowerCase() === "true";
+  } catch (err) {
+    console.error("❌ Error checking banking relevance:", err.message);
+  }
+
+  // 2️⃣ Off-topic → humorous response
+  if (!isBankingRelated) {
+    return {
+      intent: "off_topic",
+      confidence: 1,
+      response: `😅 Haha, I'm a LAPO banking assistant, not a sports, music, or trivia expert! But I *can* help you with your account, loans, transfers, or balances, ${user}.`,
+    };
+  }
+
+  // 3️⃣ LAPO-first handling
   if (lowerMsg.includes("lapo")) {
     const webhookData = await callWebhook("lapo_query", user, message);
-
-    // Detect if the webhook returned a generic fallback message
-    const genericWebhook = webhookData?.response?.includes("forwarded") || webhookData?.response?.includes("received your LAPO request");
+    const genericWebhook =
+      webhookData?.response?.includes("forwarded") ||
+      webhookData?.response?.includes("received your LAPO request");
 
     if (genericWebhook) {
       const aiReply = await fallbackAIResponse(message, user);
       return {
         intent: "lapo_query",
         confidence: 1,
-        response: aiReply, // Smart AI answer
+        response: aiReply,
       };
     }
 
-    // Otherwise, use the webhook response
     return {
       intent: "lapo_query",
       confidence: 1,
@@ -154,44 +182,31 @@ async function Predict(message, user) {
     };
   }
 
-  // 2️⃣ Detect other intents
+  // 4️⃣ Detect other intents
   const { detectedIntents, confidence } = detectIntents(message);
   let responseParts = [];
 
-  // 3️⃣ Off-topic humorous responses
-  const offTopicKeywords = ["ronaldo", "messi", "football", "soccer", "cricket", "movie", "music", "pizza", "kanye"];
-  if (offTopicKeywords.some(word => lowerMsg.includes(word))) {
-    responseParts.push(
-      `😅 Haha, I'm a LAPO banking assistant, not a sports or pizza expert! But I *can* help you with your account, loans, transfers, or balances, ${user}.`
-    );
-  } else {
-    // 4️⃣ Handle known intents
-    if (detectedIntents.length > 0 && confidence >= 0.55) {
-      for (const intent of detectedIntents) {
-        await callWebhook(intent, user, message);
-        const resp = getResponseForIntent(intent, user);
-        if (resp) responseParts.push(resp);
-      }
-    }
-
-    // 5️⃣ Unknown content → fallback AI
-    const knownKeywords = Object.values(intents).flat().map(k => k.toLowerCase());
-    const unknownWords = lowerMsg.split(/\s+/).filter(word => !knownKeywords.includes(word));
-
-    if (unknownWords.length > 0 || detectedIntents.length === 0 || confidence < 0.55) {
-      const aiReply = await fallbackAIResponse(message, user);
-      responseParts.push(aiReply);
+  if (detectedIntents.length > 0 && confidence >= 0.55) {
+    for (const intent of detectedIntents) {
+      await callWebhook(intent, user, message);
+      const resp = getResponseForIntent(intent, user);
+      if (resp) responseParts.push(resp);
     }
   }
 
-  // Combine responses
-  const finalResponse = responseParts.join(" ");
-  const combinedIntent = detectedIntents.length > 0 ? detectedIntents.join("_and_") : "webhook_fallback";
+  // 5️⃣ Unknown content → fallback AI
+  if (responseParts.length === 0) {
+    const aiReply = await fallbackAIResponse(message, user);
+    responseParts.push(aiReply);
+  }
 
   return {
-    intent: combinedIntent,
-    confidence,
-    response: finalResponse || `Sorry ${user}, I didn’t quite understand that. 🤔`,
+    intent:
+      detectedIntents.length > 0
+        ? detectedIntents.join("_and_")
+        : "webhook_fallback",
+    confidence: detectedIntents.length > 0 ? confidence : 0.9,
+    response: responseParts.join(" "),
   };
 }
 

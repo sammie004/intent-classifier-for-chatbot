@@ -1,26 +1,53 @@
 const express = require("express");
-const bodyParser = require('body-parser');
+const bodyParser = require("body-parser");
+const axios = require("axios");
+const { MessagingResponse } = require("twilio").twiml;
+
 const app = express();
 
-// Parse JSON and urlencoded form data from Twilio
-app.use(express.json());
+// Twilio sends data as form-urlencoded
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 
-// Import intent route (already handles Twilio XML response)
-const predict = require('./routes/intent-route');
+// ---------- WhatsApp webhook ----------
+app.post("/whatsapp", async (req, res) => {
+    const incomingMsg = req.body.Body;   // Message sent by user
+    const from = req.body.From;          // WhatsApp number of sender
 
-// Use your intent route for /api
-app.use('/api', predict);
+    console.log("Incoming message from", from, ":", incomingMsg);
 
-// Optional: forward WhatsApp webhook to /api/intent
-app.post("/whatsapp", (req, res) => {
-    // Just forward the request to the /api/intent route handler
-    req.body.user = req.body.From;
-    req.body.message = req.body.Body;
-    predict.handle(req, res); // call route handler directly
+    if (!incomingMsg || !from) {
+        const twiml = new MessagingResponse();
+        twiml.message("Sorry, we could not read your message.");
+        return res.type("text/xml").send(twiml.toString());
+    }
+
+    try {
+        // Call your intent classifier API
+        const response = await axios.post("https://intent-classifier-for-chatbot.onrender.com/api/intent", {
+            user: from,
+            message: incomingMsg
+        });
+
+        const aiReply = response.data.response || "I didn't understand that.";
+
+        // Respond to WhatsApp in TwiML
+        const twiml = new MessagingResponse();
+        twiml.message(aiReply);
+
+        return res.type("text/xml").send(twiml.toString());
+    } catch (err) {
+        console.error("Error calling intent API:", err.message || err);
+        const twiml = new MessagingResponse();
+        twiml.message("Sorry, I couldn't process your message.");
+        return res.type("text/xml").status(500).send(twiml.toString());
+    }
+});
+
+// Optional: Test endpoint
+app.get("/", (req, res) => {
+    res.send("Server is running...");
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

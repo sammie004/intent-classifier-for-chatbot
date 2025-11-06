@@ -110,11 +110,26 @@ router.post("/intent", async (req, res) => {
 
     const { id: userId, record: userMemory } = ensureUserRecord(rawUser);
 
-    // Update displayName if user introduced their name
+    // ---------- Name handling ----------
     const maybeName = extractNameIfPresent(messageRaw);
-    if (maybeName) userMemory.displayName = maybeName;
+    const twiml = new MessagingResponse();
 
-    // Get prediction from your AI
+    if (maybeName) {
+      userMemory.displayName = maybeName;
+      twiml.message(`Thanks ${maybeName}! I'll remember your name for future chats.`);
+      return res.type("text/xml").send(twiml.toString());
+    }
+
+    if (messageRaw.toLowerCase().includes("my name")) {
+      if (userMemory.displayName) {
+        twiml.message(`Your name is ${userMemory.displayName}!`);
+      } else {
+        twiml.message(`Hey! I don't know your name yet. You can tell me by saying "My name is ..."`);
+      }
+      return res.type("text/xml").send(twiml.toString());
+    }
+
+    // ---------- AI Prediction ----------
     const reply = await Predict(messageRaw, userId);
     const replyConfidence = typeof reply.confidence === "number" ? reply.confidence : 0;
 
@@ -139,17 +154,13 @@ router.post("/intent", async (req, res) => {
 
     // Low-confidence banking-related handling
     if (replyConfidence < LOW_CONFIDENCE_BANKING_THRESHOLD && messageIsBanking) {
-      const fallbackMsg = `I think you’re asking about banking with LAPO. Could you tell me exactly what you want to do — open an account, check balance, apply for a loan, or something else?`;
-      const twiml = new MessagingResponse();
-      twiml.message(fallbackMsg);
+      twiml.message(`I think you’re asking about banking with LAPO. Could you tell me exactly what you want to do — open an account, check balance, apply for a loan, or something else?`);
       return res.type("text/xml").send(twiml.toString());
     }
 
     // Hard fallback
     if (!overallRelevant && (replyConfidence ?? 0) < HARD_FALLBACK_THRESHOLD) {
-      const fallbackMsg = `Hi${userMemory.displayName && !userMemory.prefs.suppressGreetings ? " " + userMemory.displayName : ""}! I specialize in LAPO banking services (loans, savings, transfers, branches). Could you rephrase to a banking-related question?`;
-      const twiml = new MessagingResponse();
-      twiml.message(fallbackMsg);
+      twiml.message(`Hi${userMemory.displayName && !userMemory.prefs.suppressGreetings ? " " + userMemory.displayName : ""}! I specialize in LAPO banking services (loans, savings, transfers, branches). Could you rephrase to a banking-related question?`);
       return res.type("text/xml").send(twiml.toString());
     }
 
@@ -192,7 +203,6 @@ router.post("/intent", async (req, res) => {
     userMemory.context.lastConfidence = replyConfidence;
 
     // ---------- Twilio response ----------
-    const twiml = new MessagingResponse();
     twiml.message(enhancedResponse);
     return res.type("text/xml").send(twiml.toString());
 

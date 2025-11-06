@@ -1,45 +1,23 @@
 const express = require("express");
 const bodyParser = require('body-parser');
 const app = express();
-app.use(express.json());
-app.use(bodyParser.urlencoded({ extended: true })); // Twilio sends form-urlencoded data
 
-// require your intent route
+// Parse JSON and urlencoded form data from Twilio
+app.use(express.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// Import intent route (already handles Twilio XML response)
 const predict = require('./routes/intent-route');
 
-// usages
+// Use your intent route for /api
 app.use('/api', predict);
 
-// WhatsApp webhook route
-app.post("/whatsapp", async (req, res) => {
-    const incomingMsg = req.body.Body;      // message sent
-    const from = req.body.From;             // sender number
-
-    // Call your intent API
-    try {
-        const axios = require("axios");
-        const response = await axios.post("https://intent-classifier-for-chatbot.onrender.com/api/intent", {
-            user: from,
-            message: incomingMsg
-        });
-
-        // Send Twilio response back in TwiML format
-        res.set('Content-Type', 'text/xml');
-        return res.send(`
-            <Response>
-                <Message>${response.data.reply || "I didn't understand that."}</Message>
-            </Response>
-        `);
-
-    } catch (error) {
-        console.error(error);
-        res.set('Content-Type', 'text/xml');
-        return res.send(`
-            <Response>
-                <Message>Sorry, I couldn't process your message.</Message>
-            </Response>
-        `);
-    }
+// Optional: forward WhatsApp webhook to /api/intent
+app.post("/whatsapp", (req, res) => {
+    // Just forward the request to the /api/intent route handler
+    req.body.user = req.body.From;
+    req.body.message = req.body.Body;
+    predict.handle(req, res); // call route handler directly
 });
 
 const PORT = process.env.PORT || 3000;

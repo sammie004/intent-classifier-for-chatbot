@@ -99,49 +99,75 @@ function detectIntents(message) {
   };
 }
 
-// 🌐 Cohere fallback
+// 🌐 Cohere fallback with smart off-topic filtering
 async function fallbackAIResponse(message, user) {
   try {
+    // 🔍 First check if the message is banking-related
+    const lowerMsg = message.toLowerCase();
+    const bankingKeywords = [
+      "account", "balance", "loan", "transfer", "deposit", "withdraw",
+      "credit", "debit", "microfinance", "funds", "payment", "bank", "lapo",
+      "branch", "interest", "eligibility", "officer", "savings", "repayment",
+      "money", "naira", "transaction", "customer", "financial"
+    ];
+    
+    const offTopicKeywords = [
+      "recipe", "cook", "food", "pizza", "game", "movie", "music", "sport",
+      "weather", "joke", "story", "sing", "dance", "play", "netflix",
+      "facebook", "instagram", "twitter", "tiktok", "youtube", "politics",
+      "religion", "dating", "relationship", "health", "medicine", "doctor",
+      "school", "homework", "exam", "travel", "hotel", "flight", "car",
+      "phone", "computer", "laptop", "shopping", "fashion", "clothes",
+      "celebrity", "artist", "actor", "actress", "film", "series", "show",
+      "anime", "manga", "video", "photo", "picture", "meme", "crypto",
+      "bitcoin", "stock", "forex", "trading" // financial but not banking
+    ];
+    
+    const isBankingRelated = bankingKeywords.some(kw => lowerMsg.includes(kw));
+    const isOffTopic = offTopicKeywords.some(kw => lowerMsg.includes(kw));
+    
+    // 🚫 If clearly off-topic, return witty response immediately
+    if (isOffTopic && !isBankingRelated) {
+      const wittyOffTopicResponses = [
+        `Ha! I like where your head's at! 😄 But I'm more of a banking whiz than anything else. How about we talk loans, savings, or transfers instead?`,
+        `That's a fun question! 🤔 But my expertise is really in LAPO banking services. Can I help you with your account, a loan, or maybe a transfer?`,
+        `You know what? I wish I could help with that! 😅 But I'm laser-focused on banking stuff. Need help with savings, loans, or checking your balance?`,
+        `Interesting question! 💡 But here's the thing — I'm a banking assistant through and through. Want to chat about your finances instead?`,
+        `I appreciate the creativity! 😊 However, I specialize in LAPO banking. How about we discuss your account, loans, or transfers?`,
+        `That's outside my wheelhouse! 🏦 I'm all about helping with banking needs. Can I assist with savings, loans, or balance inquiries?`,
+        `Love the question, but that's not really my forte! 😄 I'm here for all things banking — loans, accounts, transfers. What do you need?`,
+        `Hmm, not quite my area of expertise! 🤷 But I'm a pro at LAPO banking services. Want to talk savings or loans?`,
+        `Nice try! 😆 But I'm strictly a banking bot. Let's get back to the money matters — loans, savings, or transfers?`,
+        `That's a good one! 🎯 But I keep my focus on LAPO banking. How can I help with your financial needs today?`,
+      ];
+      
+      return wittyOffTopicResponses[Math.floor(Math.random() * wittyOffTopicResponses.length)];
+    }
+
     const response = await cohere.chat({
       model: "command-r-plus-08-2024",
-      message: `You are a friendly LAPO banking assistant. Respond conversationally and informatively to this: "${message}". Keep it natural and don't always use the user's name.`,
+      message: `You are a LAPO Microfinance Bank assistant. Only answer banking-related questions. For this query: "${message}" - if it's about banking, answer it briefly and conversationally. If it's not about banking, say you can only help with banking topics. Keep responses under 3 sentences unless providing detailed banking info.`,
       temperature: 0.7,
     });
 
     let text = response.text?.trim() || "";
-    const bankingKeywords = [
-      "account", "balance", "loan", "transfer", "deposit", "withdraw",
-      "credit", "debit", "microfinance", "funds", "payment", "bank", "lapo",
-      "branch", "interest", "eligibility", "officer", "savings", "repayment"
-    ];
-
-    const isRelevant = bankingKeywords.some(kw => text.toLowerCase().includes(kw));
-
-    if (!isRelevant) {
-      const reframed = await cohere.chat({
-        model: "command-r-plus-08-2024",
-        message: `You are a LAPO Microfinance Bank assistant. Rewrite this response so it relates to banking: "${text}". 
-If unrelated, politely redirect the user to banking topics. Be casual and conversational.`,
-      });
-
-      text = reframed.text?.trim() || "";
-      const stillRelevant = bankingKeywords.some(kw => text.toLowerCase().includes(kw));
-
-      if (!stillRelevant) {
-        // 🎲 Witty off-topic responses
-        const wittyOffTopicResponses = [
-          `Ha! I like where your head's at! 😄 But I'm more of a banking whiz than anything else. How about we talk loans, savings, or transfers instead?`,
-          `That's a fun question! 🤔 But my expertise is really in LAPO banking services. Can I help you with your account, a loan, or maybe a transfer?`,
-          `You know what? I wish I could help with that! 😅 But I'm laser-focused on banking stuff. Need help with savings, loans, or checking your balance?`,
-          `Interesting question! 💡 But here's the thing — I'm a banking assistant through and through. Want to chat about your finances instead?`,
-          `I appreciate the creativity! 😊 However, I specialize in LAPO banking. How about we discuss your account, loans, or transfers?`,
-          `That's outside my wheelhouse! 🏦 I'm all about helping with banking needs. Can I assist with savings, loans, or balance inquiries?`,
-          `Love the question, but that's not really my forte! 😄 I'm here for all things banking — loans, accounts, transfers. What do you need?`,
-          `Hmm, not quite my area of expertise! 🤷 But I'm a pro at LAPO banking services. Want to talk savings or loans?`,
-        ];
-        
-        return wittyOffTopicResponses[Math.floor(Math.random() * wittyOffTopicResponses.length)];
-      }
+    
+    // Double-check the response is banking-related and not too long
+    const responseIsBanking = bankingKeywords.some(kw => text.toLowerCase().includes(kw));
+    
+    if (!responseIsBanking || text.length > 500) {
+      const wittyOffTopicResponses = [
+        `Ha! I like where your head's at! 😄 But I'm more of a banking whiz than anything else. How about we talk loans, savings, or transfers instead?`,
+        `That's a fun question! 🤔 But my expertise is really in LAPO banking services. Can I help you with your account, a loan, or maybe a transfer?`,
+        `You know what? I wish I could help with that! 😅 But I'm laser-focused on banking stuff. Need help with savings, loans, or checking your balance?`,
+        `Interesting! 💡 But I'm a banking assistant through and through. Want to chat about your finances instead?`,
+        `I appreciate the creativity! 😊 However, I specialize in LAPO banking. How about we discuss your account, loans, or transfers?`,
+        `That's outside my wheelhouse! 🏦 I'm all about helping with banking needs. Can I assist with savings, loans, or balance inquiries?`,
+        `Love the question, but that's not really my forte! 😄 I'm here for all things banking — loans, accounts, transfers. What do you need?`,
+        `Hmm, not quite my area of expertise! 🤷 But I'm a pro at LAPO banking services. Want to talk savings or loans?`,
+      ];
+      
+      return wittyOffTopicResponses[Math.floor(Math.random() * wittyOffTopicResponses.length)];
     }
 
     return text;
@@ -230,7 +256,7 @@ async function Predict(message, user) {
       "how", "which", "may i", "might", "shall",
       "tell me", "show me", "explain", "describe",
       "i want to know", "i need to know", "i would like to know",
-      "please tell", "can i", "could i", "may i ask","do i need", "is it possible"
+      "please tell", "can i", "could i", "may i ask", "do i need", "is it possible"
     ];
     
     const isQuestion = message.includes("?") || questionStarters.some(starter => lowerMsg.startsWith(starter) || lowerMsg.includes(" " + starter));
@@ -272,16 +298,7 @@ async function Predict(message, user) {
       `Welcome back! How can I assist you today? 😊`,
     ];
 
-    const wittyFallbacks = [
-      `Hmm, that's an interesting question! 🤔 Let me think about that...`,
-      `I love your curiosity! 😄 However...`,
-      `Great question! 💡 But here's the thing...`,
-      `You know what? That's a bit outside my wheelhouse, but...`,
-      `Interesting! 🧐 I'm more of a banking expert, so...`,
-    ];
-
     const randomGreeting = () => wittyGreetings[Math.floor(Math.random() * wittyGreetings.length)];
-    const randomFallback = () => wittyFallbacks[Math.floor(Math.random() * wittyFallbacks.length)];
 
     switch (primaryIntent) {
       case "greeting":

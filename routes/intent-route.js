@@ -2,6 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const { Predict } = require("../sub-main/submain");
+const { MessagingResponse } = require("twilio").twiml;
 
 // ---------- Configuration / keyword lists ----------
 const BANKING_KEYWORDS = [
@@ -114,7 +115,7 @@ router.post("/intent", async (req, res) => {
     if (maybeName) userMemory.displayName = maybeName;
 
     // Get prediction from your AI
-    const reply = await Predict(messageRaw, userId); 
+    const reply = await Predict(messageRaw, userId);
     const replyConfidence = typeof reply.confidence === "number" ? reply.confidence : 0;
 
     // Store interaction to history
@@ -138,22 +139,18 @@ router.post("/intent", async (req, res) => {
 
     // Low-confidence banking-related handling
     if (replyConfidence < LOW_CONFIDENCE_BANKING_THRESHOLD && messageIsBanking) {
-      return res.json({
-        intent: "banking_inquiry",
-        confidence: replyConfidence,
-        response: `I think you’re asking about banking with LAPO. Could you tell me exactly what you want to do — open an account, check balance, apply for a loan, or something else?`,
-        memoryContext: { displayName: userMemory.displayName || null, lastIntentGuess: reply.intent || null }
-      });
+      const fallbackMsg = `I think you’re asking about banking with LAPO. Could you tell me exactly what you want to do — open an account, check balance, apply for a loan, or something else?`;
+      const twiml = new MessagingResponse();
+      twiml.message(fallbackMsg);
+      return res.type("text/xml").send(twiml.toString());
     }
 
     // Hard fallback
     if (!overallRelevant && (replyConfidence ?? 0) < HARD_FALLBACK_THRESHOLD) {
-      return res.json({
-        intent: "webhook_fallback",
-        confidence: replyConfidence || 0,
-        response: `Hi${userMemory.displayName && !userMemory.prefs.suppressGreetings ? " " + userMemory.displayName : ""}! I specialize in LAPO banking services (loans, savings, transfers, branches). Could you rephrase to a banking-related question?`,
-        memoryContext: { displayName: userMemory.displayName || null }
-      });
+      const fallbackMsg = `Hi${userMemory.displayName && !userMemory.prefs.suppressGreetings ? " " + userMemory.displayName : ""}! I specialize in LAPO banking services (loans, savings, transfers, branches). Could you rephrase to a banking-related question?`;
+      const twiml = new MessagingResponse();
+      twiml.message(fallbackMsg);
+      return res.type("text/xml").send(twiml.toString());
     }
 
     // Intent correction
@@ -194,21 +191,16 @@ router.post("/intent", async (req, res) => {
     userMemory.context.lastIntent = correctedIntent;
     userMemory.context.lastConfidence = replyConfidence;
 
-    return res.json({
-      ...reply,
-      intent: correctedIntent,
-      confidence: replyConfidence,
-      response: enhancedResponse,
-      memoryContext: {
-        displayName: userMemory.displayName || null,
-        prefs: userMemory.prefs || {},
-        lastIntent: userMemory.context.lastIntent || null
-      }
-    });
+    // ---------- Twilio response ----------
+    const twiml = new MessagingResponse();
+    twiml.message(enhancedResponse);
+    return res.type("text/xml").send(twiml.toString());
 
   } catch (err) {
     console.error("Error in /intent route:", err);
-    return res.status(500).json({ error: "Internal server error" });
+    const twiml = new MessagingResponse();
+    twiml.message("Sorry, I couldn't process your message.");
+    return res.type("text/xml").status(500).send(twiml.toString());
   }
 });
 

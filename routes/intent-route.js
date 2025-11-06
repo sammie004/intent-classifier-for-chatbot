@@ -9,7 +9,8 @@ const BANKING_KEYWORDS = [
   "loan", "bank", "account", "balance", "transfer", "savings", "deposit",
   "withdrawal", "credit", "debit", "branch", "funds", "interest",
   "microfinance", "payment", "repayment", "finance", "eligibility", "loan officer",
-  "open account", "education loan", "business loan", "sme loan"
+  "open account", "education loan", "business loan", "sme loan", "naira", "₦",
+  "customer service", "apply", "requirement", "document", "id card", "bvn"
 ];
 
 const LAPO_KEYWORDS = [
@@ -17,39 +18,96 @@ const LAPO_KEYWORDS = [
   "ehigiamusoe", "founder", "lapo bank", "microfinance bank"
 ];
 
+const OFF_TOPIC_KEYWORDS = [
+  "recipe", "cook", "food", "pizza", "game", "movie", "music", "sport",
+  "weather", "joke", "story", "sing", "dance", "play", "netflix",
+  "facebook", "instagram", "twitter", "tiktok", "youtube", "politics",
+  "religion", "dating", "relationship", "health", "medicine", "doctor",
+  "school", "homework", "exam", "travel", "hotel", "flight", "car",
+  "phone", "computer", "laptop", "shopping", "fashion", "clothes",
+  "celebrity", "artist", "actor", "actress", "film", "series", "show",
+  "anime", "manga", "video", "photo", "picture", "meme"
+];
+
 const MIN_CONFIDENCE_FOR_DIRECT = 0.55;
 const LOW_CONFIDENCE_BANKING_THRESHOLD = 0.30;
 const HARD_FALLBACK_THRESHOLD = 0.40;
+const MEMORY_RETENTION_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 // ---------- In-memory conversation memory ----------
-const conversationMemory = {}; // conversationMemory[userId] = { displayName, context, history, prefs }
+const conversationMemory = {}; 
+
+// ---------- Memory Cleanup (runs every 15 minutes) ----------
+setInterval(() => {
+  const now = Date.now();
+  let cleanedCount = 0;
+  
+  for (const [userId, data] of Object.entries(conversationMemory)) {
+    if (now - data.lastSeen > MEMORY_RETENTION_MS) {
+      delete conversationMemory[userId];
+      cleanedCount++;
+    }
+  }
+  
+  if (cleanedCount > 0) {
+    console.log(`🧹 Cleaned ${cleanedCount} inactive user sessions`);
+  }
+}, 15 * 60 * 1000);
 
 // ---------- Utility helpers ----------
 function ensureUserRecord(rawUser) {
   let id, name;
+  
   if (!rawUser) throw new Error("user missing");
+  
+  // Handle WhatsApp number format (whatsapp:+1234567890)
   if (typeof rawUser === "string") {
-    id = rawUser;
+    id = rawUser.replace(/^whatsapp:/, ""); // Remove WhatsApp prefix
     name = null;
   } else if (typeof rawUser === "object") {
     id = rawUser.id || rawUser.user || rawUser.username || rawUser.name || JSON.stringify(rawUser);
+    id = id.replace(/^whatsapp:/, "");
     name = rawUser.name || rawUser.displayName || null;
   } else {
-    id = String(rawUser);
+    id = String(rawUser).replace(/^whatsapp:/, "");
     name = null;
   }
 
+  // Initialize or update user record
   if (!conversationMemory[id]) {
     conversationMemory[id] = {
       displayName: name,
-      context: {},
+      context: {
+        currentIntent: null,
+        pendingAction: null,
+        loanType: null,
+        accountType: null,
+      },
       history: [],
-      prefs: { suppressGreetings: false },
+      prefs: { 
+        suppressGreetings: false,
+        hasGreeted: false
+      },
       lastSeen: Date.now(),
+      createdAt: Date.now(),
     };
+    console.log(`✅ New user session created: ${id}`);
   } else {
     if (name) conversationMemory[id].displayName = name;
     conversationMemory[id].lastSeen = Date.now();
+    
+    // Reset context if user has been away for more than 30 minutes
+    const thirtyMinutes = 30 * 60 * 1000;
+    if (Date.now() - conversationMemory[id].lastSeen > thirtyMinutes) {
+      conversationMemory[id].context = {
+        currentIntent: null,
+        pendingAction: null,
+        loanType: null,
+        accountType: null,
+      };
+      conversationMemory[id].prefs.hasGreeted = false;
+      console.log(`🔄 Reset context for returning user: ${id}`);
+    }
   }
 
   return { id, record: conversationMemory[id] };
@@ -69,25 +127,42 @@ function checkRelevance(text = "") {
   const lower = (text || "").toLowerCase();
   const mentionsLapo = LAPO_KEYWORDS.some(kw => lower.includes(kw));
   const mentionsBanking = BANKING_KEYWORDS.some(kw => lower.includes(kw));
+  const mentionsOffTopic = OFF_TOPIC_KEYWORDS.some(kw => lower.includes(kw));
 
-  if (mentionsBanking && mentionsLapo) return { relevant: true, level: "very-high" };
-  if (mentionsBanking) return { relevant: true, level: "high" };
-  if (mentionsLapo) return { relevant: true, level: "medium" };
-  return { relevant: false, level: "none" };
+  if (mentionsOffTopic && !mentionsBanking) {
+    return { relevant: false, level: "off-topic", isBanking: false };
+  }
+  if (mentionsBanking && mentionsLapo) {
+    return { relevant: true, level: "very-high", isBanking: true };
+  }
+  if (mentionsBanking) {
+    return { relevant: true, level: "high", isBanking: true };
+  }
+  if (mentionsLapo) {
+    return { relevant: true, level: "medium", isBanking: true };
+  }
+  
+  return { relevant: false, level: "none", isBanking: false };
 }
 
 function extractNameIfPresent(message = "") {
   const lower = message.toLowerCase();
   const patterns = [
     /my name is\s+([a-zA-Z]{2,20})/i,
-    /i am\s+([a-zA-Z]{2,20})/i,
+    /i am\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
     /i'm\s+([a-zA-Z]{2,20})/i,
     /call me\s+([a-zA-Z]{2,20})/i,
     /name:\s*([a-zA-Z]{2,20})/i
   ];
+  
   for (const p of patterns) {
     const m = lower.match(p);
-    if (m && m[1]) return m[1].charAt(0).toUpperCase() + m[1].slice(1);
+    if (m && m[1]) {
+      const name = m[1].trim();
+      return name.split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ');
+    }
   }
   return null;
 }
@@ -95,123 +170,348 @@ function extractNameIfPresent(message = "") {
 function stripRepeatedGreeting(aiText = "", displayName = null, prefs = {}) {
   if (!prefs || !prefs.suppressGreetings) return aiText;
   if (!displayName) return aiText;
-  const greetRegex = new RegExp(`^(good\\s(morning|afternoon|evening)|hello|hi|hey)[,\\s]*${displayName}[,\\s]*`, "i");
+  
+  const greetRegex = new RegExp(
+    `^(good\\s+(morning|afternoon|evening)|hello|hi|hey)[,\\s]*${displayName}[!,\\s]*`,
+    "i"
+  );
   return aiText.replace(greetRegex, "").trim();
+}
+
+// ---------- RESPONSE VALIDATION FUNCTION ----------
+function validateResponseRelevance(response = "", userMessage = "", userMemory = {}) {
+  const responseLower = response.toLowerCase();
+  const messageLower = userMessage.toLowerCase();
+  
+  // Check if response mentions banking at all
+  const responseHasBanking = BANKING_KEYWORDS.some(kw => responseLower.includes(kw));
+  const responseHasLapo = LAPO_KEYWORDS.some(kw => responseLower.includes(kw));
+  const responseHasOffTopic = OFF_TOPIC_KEYWORDS.some(kw => responseLower.includes(kw));
+  
+  // User message context
+  const messageHasBanking = BANKING_KEYWORDS.some(kw => messageLower.includes(kw));
+  const messageHasOffTopic = OFF_TOPIC_KEYWORDS.some(kw => messageLower.includes(kw));
+  
+  // If user asked about banking but response is off-topic, reject it
+  if (messageHasBanking && !responseHasBanking && !responseHasLapo) {
+    return {
+      isValid: false,
+      reason: "Response doesn't address banking query",
+      replacement: `I can help you with banking services at LAPO. Could you please clarify what you need — checking your balance, applying for a loan, opening an account, or something else?`
+    };
+  }
+  
+  // If response talks about off-topic things when user asked banking question
+  if (messageHasBanking && responseHasOffTopic && !responseHasBanking) {
+    return {
+      isValid: false,
+      reason: "Response went off-topic",
+      replacement: `Let me help you with your banking needs at LAPO. What would you like to know about — loans, savings accounts, transfers, or our branches?`
+    };
+  }
+  
+  // Check for generic/vague responses to specific banking questions
+  const specificBankingTerms = ["loan", "balance", "transfer", "account", "savings"];
+  const userAskedSpecific = specificBankingTerms.some(term => messageLower.includes(term));
+  const responseIsVague = response.length < 50 && !specificBankingTerms.some(term => responseLower.includes(term));
+  
+  if (userAskedSpecific && responseIsVague) {
+    return {
+      isValid: false,
+      reason: "Response too vague for specific query",
+      replacement: `I want to give you the right information about LAPO's banking services. Could you tell me more specifically what you need help with?`
+    };
+  }
+  
+  // Response is valid
+  return {
+    isValid: true,
+    reason: "Response is banking-relevant"
+  };
+}
+
+// ---------- WITTY OFF-TOPIC RESPONSES ----------
+const WITTY_OFF_TOPIC = [
+  `Ha! I like where your head's at! 😄 But I'm more of a banking whiz than anything else. How about we talk loans, savings, or transfers instead?`,
+  `That's a fun question! 🤔 But my expertise is really in LAPO banking services. Can I help you with your account, a loan, or maybe a transfer?`,
+  `You know what? I wish I could help with that! 😅 But I'm laser-focused on banking stuff. Need help with savings, loans, or checking your balance?`,
+  `Interesting! 💡 But I'm a banking assistant through and through. Want to chat about your finances instead?`,
+  `I appreciate the creativity! 😊 However, I specialize in LAPO banking. How about we discuss your account, loans, or transfers?`,
+  `That's outside my wheelhouse! 🏦 I'm all about helping with banking needs. Can I assist with savings, loans, or balance inquiries?`,
+];
+
+function getRandomOffTopicResponse() {
+  return WITTY_OFF_TOPIC[Math.floor(Math.random() * WITTY_OFF_TOPIC.length)];
 }
 
 // ---------- Main route ----------
 router.post("/intent", async (req, res) => {
+  const requestStartTime = Date.now();
+  
   try {
-    const rawUser = req.body.user || req.body.From;
-    const messageRaw = sanitizeText(req.body.message || req.body.Body);
+    // Extract user and message (WhatsApp compatible)
+    const rawUser = req.body.From || req.body.user; // Twilio sends 'From'
+    const messageRaw = sanitizeText(req.body.Body || req.body.message); // Twilio sends 'Body'
+    
+    console.log(`📨 Received message from ${rawUser}: "${messageRaw}"`);
+    
     if (!messageRaw || !rawUser) {
-      return res.status(400).json({ error: "Both 'message' and 'user' are required" });
+      console.error("❌ Missing message or user");
+      return res.status(400).json({ error: "Both 'Body' and 'From' are required" });
     }
 
     const { id: userId, record: userMemory } = ensureUserRecord(rawUser);
+    const twiml = new MessagingResponse();
 
     // ---------- Name handling ----------
     const maybeName = extractNameIfPresent(messageRaw);
-    const twiml = new MessagingResponse();
-
+    
     if (maybeName) {
       userMemory.displayName = maybeName;
-      twiml.message(`Thanks ${maybeName}! I'll remember your name for future chats.`);
+      userMemory.prefs.hasGreeted = true;
+      console.log(`👤 User name set: ${maybeName}`);
+      
+      twiml.message(`Thanks ${maybeName}! 😊 I'll remember your name. How can I help you with LAPO banking today?`);
       return res.type("text/xml").send(twiml.toString());
     }
 
-    if (messageRaw.toLowerCase().includes("my name")) {
+    if (messageRaw.toLowerCase().includes("my name") && !messageRaw.toLowerCase().includes("my name is")) {
       if (userMemory.displayName) {
-        twiml.message(`Your name is ${userMemory.displayName}!`);
+        twiml.message(`Your name is ${userMemory.displayName}! 👋`);
       } else {
-        twiml.message(`Hey! I don't know your name yet. You can tell me by saying "My name is ..."`);
+        twiml.message(`I don't know your name yet! You can tell me by saying "My name is ..."`);
       }
       return res.type("text/xml").send(twiml.toString());
     }
 
+    // ---------- Check if message is clearly off-topic BEFORE AI call ----------
+    const quickRelevanceCheck = checkRelevance(messageRaw);
+    
+    if (quickRelevanceCheck.level === "off-topic") {
+      console.log(`🚫 Off-topic message detected: ${messageRaw}`);
+      twiml.message(getRandomOffTopicResponse());
+      return res.type("text/xml").send(twiml.toString());
+    }
+
     // ---------- AI Prediction ----------
+    console.log(`🤖 Sending to AI: "${messageRaw}"`);
     const reply = await Predict(messageRaw, userId);
     const replyConfidence = typeof reply.confidence === "number" ? reply.confidence : 0;
+    
+    console.log(`📊 AI Response - Intent: ${reply.intent}, Confidence: ${replyConfidence}`);
 
-    // Store interaction to history
+    // ---------- VALIDATE RESPONSE RELEVANCE ----------
+    const validation = validateResponseRelevance(reply.response || "", messageRaw, userMemory);
+    
+    if (!validation.isValid) {
+      console.log(`⚠️ Response validation failed: ${validation.reason}`);
+      twiml.message(validation.replacement);
+      return res.type("text/xml").send(twiml.toString());
+    }
+
+    // Store interaction to history with better structure
     userMemory.history.push({
       ts: Date.now(),
       userMessage: messageRaw,
       aiReply: reply.response,
       aiIntent: reply.intent,
-      aiConfidence: replyConfidence
+      aiConfidence: replyConfidence,
+      contextSnapshot: { ...userMemory.context } // Store context at this point
     });
-    if (userMemory.history.length > 50) userMemory.history = userMemory.history.slice(-30);
+    
+    // Keep only last 20 interactions to prevent memory bloat
+    if (userMemory.history.length > 20) {
+      userMemory.history = userMemory.history.slice(-20);
+    }
 
-    // Check relevance
+    // Check relevance with enhanced logic
     const msgRel = checkRelevance(messageRaw);
     const resRel = checkRelevance(reply.response || "");
     const msgBankMatches = countKeywordMatches(messageRaw, BANKING_KEYWORDS);
     const resBankMatches = countKeywordMatches(reply.response || "", BANKING_KEYWORDS);
-    const messageIsBanking = msgRel.relevant || msgBankMatches >= 1;
-    const responseIsBanking = resRel.relevant || resBankMatches >= 1;
+    const messageIsBanking = msgRel.isBanking || msgBankMatches >= 1;
+    const responseIsBanking = resRel.isBanking || resBankMatches >= 1;
     const overallRelevant = messageIsBanking || responseIsBanking;
 
     // Low-confidence banking-related handling
     if (replyConfidence < LOW_CONFIDENCE_BANKING_THRESHOLD && messageIsBanking) {
-      twiml.message(`I think you’re asking about banking with LAPO. Could you tell me exactly what you want to do — open an account, check balance, apply for a loan, or something else?`);
+      const clarificationMsg = `I think you're asking about banking with LAPO. Could you tell me exactly what you want to do?\n\n` +
+        `📋 I can help with:\n` +
+        `• Checking your balance\n` +
+        `• Applying for a loan\n` +
+        `• Opening a savings account\n` +
+        `• Making transfers\n` +
+        `• Finding a branch`;
+      
+      twiml.message(clarificationMsg);
       return res.type("text/xml").send(twiml.toString());
     }
 
-    // Hard fallback
-    if (!overallRelevant && (replyConfidence ?? 0) < HARD_FALLBACK_THRESHOLD) {
-      twiml.message(`Hi${userMemory.displayName && !userMemory.prefs.suppressGreetings ? " " + userMemory.displayName : ""}! I specialize in LAPO banking services (loans, savings, transfers, branches). Could you rephrase to a banking-related question?`);
+    // Hard fallback with better guidance
+    if (!overallRelevant && replyConfidence < HARD_FALLBACK_THRESHOLD) {
+      const userName = userMemory.displayName && !userMemory.prefs.suppressGreetings 
+        ? ` ${userMemory.displayName}` 
+        : "";
+      
+      const fallbackMsg = `Hi${userName}! 👋 I specialize in LAPO banking services.\n\n` +
+        `I can help you with:\n` +
+        `💰 Loans & Credit\n` +
+        `💵 Savings Accounts\n` +
+        `💸 Transfers & Payments\n` +
+        `🏦 Branch Locations\n` +
+        `📊 Balance Inquiries\n\n` +
+        `What would you like to know?`;
+      
+      twiml.message(fallbackMsg);
       return res.type("text/xml").send(twiml.toString());
     }
 
-    // Intent correction
-    let correctedIntent = reply.intent || "webhook_fallback";
+    // Intent correction with memory context
+    let correctedIntent = reply.intent || "general_inquiry";
+    
     if ((reply.intent === "greeting" || replyConfidence < 0.35) && messageIsBanking) {
       correctedIntent = "banking_inquiry";
     }
+    
+    // Update context based on detected intent
+    userMemory.context.currentIntent = correctedIntent;
+    
+    if (correctedIntent === "loan") {
+      userMemory.context.pendingAction = "loan_application";
+    } else if (correctedIntent === "savings") {
+      userMemory.context.pendingAction = "account_opening";
+    } else if (correctedIntent === "balance") {
+      userMemory.context.pendingAction = "balance_check";
+    }
 
-    // Enrichment
+    // Enrichment based on specific queries
     let enhancedResponse = (reply.response || "").trim();
     const lowerMsg = messageRaw.toLowerCase();
 
-    if (lowerMsg.includes("education loan") || lowerMsg.includes("student loan") || lowerMsg.includes("education")) {
+    // Education loan enrichment
+    if ((lowerMsg.includes("education") || lowerMsg.includes("student") || lowerMsg.includes("school")) && 
+        (lowerMsg.includes("loan") || lowerMsg.includes("borrow"))) {
       if (!enhancedResponse.toLowerCase().includes("education loan")) {
-        enhancedResponse += `\n\n🎓 LAPO’s Education Loan helps students and parents cover school fees and education-related expenses. We can check eligibility or connect you with a loan officer — would you like that?`;
+        enhancedResponse += `\n\n🎓 *LAPO Education Loan*\n` +
+          `We help students and parents cover:\n` +
+          `• School fees\n` +
+          `• Books & materials\n` +
+          `• Accommodation\n\n` +
+          `Would you like to know the eligibility requirements or speak with a loan officer?`;
       }
-    } else if (lowerMsg.includes("business loan") || lowerMsg.includes("sme loan") || lowerMsg.includes("small business")) {
+      userMemory.context.loanType = "education";
+    }
+    
+    // Business loan enrichment
+    else if ((lowerMsg.includes("business") || lowerMsg.includes("sme") || lowerMsg.includes("trading")) && 
+             lowerMsg.includes("loan")) {
       if (!enhancedResponse.toLowerCase().includes("business")) {
-        enhancedResponse += `\n\n💼 LAPO’s Business/SME loans support traders and entrepreneurs. I can give eligibility details or connect you with a loan officer. Which would you prefer?`;
+        enhancedResponse += `\n\n💼 *LAPO Business/SME Loan*\n` +
+          `Perfect for traders and entrepreneurs!\n` +
+          `• Flexible repayment terms\n` +
+          `• Competitive interest rates\n` +
+          `• Quick approval process\n\n` +
+          `Want to check eligibility or connect with a loan officer?`;
       }
-    } else if ((lowerMsg.includes("open account") || lowerMsg.includes("savings account") || lowerMsg.includes("open a savings"))) {
+      userMemory.context.loanType = "business";
+    }
+    
+    // Savings account enrichment
+    else if (lowerMsg.includes("open") && (lowerMsg.includes("account") || lowerMsg.includes("savings"))) {
       if (!enhancedResponse.toLowerCase().includes("open")) {
-        enhancedResponse += `\n\n💰 To open a LAPO savings account: you can visit any branch or start with our customer support. Would you like the nearest branch or the required documents?`;
+        enhancedResponse += `\n\n💰 *Open a LAPO Savings Account*\n\n` +
+          `📄 Requirements:\n` +
+          `• Valid ID (National ID, Driver's License, or Passport)\n` +
+          `• Proof of address\n` +
+          `• Passport photograph\n` +
+          `• Minimum opening deposit\n\n` +
+          `Would you like the nearest branch location or the full application process?`;
       }
+      userMemory.context.accountType = "savings";
     }
 
-    if (userMemory.prefs && userMemory.prefs.suppressGreetings && userMemory.displayName) {
+    // Strip repeated greetings if user has been greeted
+    if (userMemory.prefs.hasGreeted && userMemory.displayName) {
       enhancedResponse = stripRepeatedGreeting(enhancedResponse, userMemory.displayName, userMemory.prefs);
+    } else if (correctedIntent === "greeting") {
+      userMemory.prefs.hasGreeted = true;
     }
 
-    if (replyConfidence < 0.45 && overallRelevant && !enhancedResponse.toLowerCase().includes("please rephrase")) {
-      enhancedResponse += `\n\n(If you want more detailed help, reply with "Tell me how" or "Connect me to an officer".)`;
+    // Add help prompt for low confidence
+    if (replyConfidence < 0.45 && overallRelevant && 
+        !enhancedResponse.toLowerCase().includes("tell me how") &&
+        !enhancedResponse.toLowerCase().includes("officer")) {
+      enhancedResponse += `\n\n💡 _Need more details? Reply "Tell me more" or "Connect me to an officer"_`;
     }
 
-    if (enhancedResponse.length > 4000) enhancedResponse = enhancedResponse.slice(0, 3996) + "...";
+    // Truncate if too long (WhatsApp has limits)
+    if (enhancedResponse.length > 1600) {
+      enhancedResponse = enhancedResponse.slice(0, 1596) + "...";
+    }
 
     // Update memory context
     userMemory.context.lastIntent = correctedIntent;
     userMemory.context.lastConfidence = replyConfidence;
+    userMemory.context.lastMessageTime = Date.now();
 
-    // ---------- Twilio response ----------
+    // ---------- Send Twilio/WhatsApp response ----------
     twiml.message(enhancedResponse);
+    
+    const processingTime = Date.now() - requestStartTime;
+    console.log(`✅ Response sent to ${userId} in ${processingTime}ms`);
+    console.log(`💬 Response: "${enhancedResponse.substring(0, 100)}..."`);
+    
     return res.type("text/xml").send(twiml.toString());
 
   } catch (err) {
-    console.error("Error in /intent route:", err);
+    console.error("❌ Error in /intent route:", err);
+    console.error("Stack trace:", err.stack);
+    
     const twiml = new MessagingResponse();
-    twiml.message("Sorry, I couldn't process your message.");
+    twiml.message(
+      `Oops! 😅 Something went wrong on my end. This has been logged.\n\n` +
+      `Please try again or contact LAPO customer service at:\n` +
+      `📞 0700-LAPO-MFB\n` +
+      `📧 info@lapo-nigeria.org`
+    );
+    
     return res.type("text/xml").status(500).send(twiml.toString());
   }
+});
+
+// ---------- Health check endpoint ----------
+router.get("/health", (req, res) => {
+  const activeUsers = Object.keys(conversationMemory).length;
+  const totalInteractions = Object.values(conversationMemory)
+    .reduce((sum, user) => sum + user.history.length, 0);
+  
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    activeUsers,
+    totalInteractions,
+    memoryRetentionMs: MEMORY_RETENTION_MS
+  });
+});
+
+// ---------- Debug endpoint (remove in production) ----------
+router.get("/debug/memory/:userId", (req, res) => {
+  const userId = req.params.userId.replace(/^whatsapp:/, "");
+  const memory = conversationMemory[userId];
+  
+  if (!memory) {
+    return res.status(404).json({ error: "User not found" });
+  }
+  
+  res.json({
+    userId,
+    displayName: memory.displayName,
+    context: memory.context,
+    historyCount: memory.history.length,
+    recentHistory: memory.history.slice(-5),
+    lastSeen: new Date(memory.lastSeen).toISOString(),
+    sessionAge: Date.now() - memory.createdAt
+  });
 });
 
 module.exports = router;

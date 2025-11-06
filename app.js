@@ -1,53 +1,23 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const axios = require("axios");
-const { MessagingResponse } = require("twilio").twiml;
-
-const app = express();
-
-// Twilio sends data as form-urlencoded
-app.use(bodyParser.urlencoded({ extended: true }));
+const express = require("express")
+const bodyParser = require('body-parser')
+const app = express()
+app.use(express.json())
+// app.use(bodyParser)
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-// ---------- WhatsApp webhook ----------
-app.post("/whatsapp", async (req, res) => {
-    const incomingMsg = req.body.Body;   // Message sent by user
-    const from = req.body.From;          // WhatsApp number of sender
+// require
+const predict = require('./routes/intent-route')
 
-    console.log("Incoming message from", from, ":", incomingMsg);
 
-    if (!incomingMsg || !from) {
-        const twiml = new MessagingResponse();
-        twiml.message("Sorry, we could not read your message.");
-        return res.type("text/xml").send(twiml.toString());
-    }
+// usages
+// app.use('/',(req,res)=>{
+//     return  res.json({message:`this is the basic one`})
+// })
+app.use('/api',predict)
+// webhook
 
-    try {
-        // Call your intent classifier API
-        const response = await axios.post("https://intent-classifier-for-chatbot.onrender.com/api/intent", {
-            user: from,
-            message: incomingMsg
-        });
-
-        const aiReply = response.data.response || "I didn't understand that.";
-
-        // Respond to WhatsApp in TwiML
-        const twiml = new MessagingResponse();
-        twiml.message(aiReply);
-
-        return res.type("text/xml").send(twiml.toString());
-    } catch (err) {
-        console.error("Error calling intent API:", err.message || err);
-        const twiml = new MessagingResponse();
-        twiml.message("Sorry, I couldn't process your message.");
-        return res.type("text/xml").status(500).send(twiml.toString());
-    }
-});
-
-// Optional: Test endpoint
-app.get("/", (req, res) => {
-    res.send("Server is running...");
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const PORT = '3000'
+app.listen(PORT || `3000`,()=>{
+    console.log(`the server is running on port ${PORT}`)
+})

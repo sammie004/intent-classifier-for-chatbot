@@ -1,4 +1,32 @@
-/**
+// 
+case "identity":
+        intentGuidance = `The user is asking about your identity (who/what you are).
+        
+        CRITICAL RESPONSE RULES:
+        - Keep to EXACTLY 2-3 sentences (under 35 words total)
+        - Your name is "LapoBot" - say it once
+        - Be honest: you're an AI for LAPO Bank
+        - Briefly state what you do: answer banking questions
+        - Mention ONE limitation: can't do actual transactions
+        - Keep tone professional and friendly, NOT overly enthusiastic
+        - Use maximum 1 emoji
+        - Do NOT use phrases like: "brighten your day", "super easy", "all ears", "buddy", "lend a digital hand"
+        - Be direct and concise
+        
+        CORRECT EXAMPLES (copy this style):
+        "I'm LapoBot, an AI assistant for LAPO Bank. 🤖 I answer questions about loans, accounts, and services, but I can't do actual transactions. How can I help?"
+        
+        "I'm LapoBot! I'm LAPO's AI chatbot here to answer your banking questions. For transactions, you'll need to visit a branch. What do you need?"
+        
+        "I'm LapoBot, your AI helper for LAPO banking info. I can guide you through services but can't access real accounts. What brings you here?"
+        
+        WRONG EXAMPLES (never do this):
+        ❌ "Hey there, friend! I'm LapoBot... brighten your day... make banking a breeze..."
+        ❌ "I'm your personal assistant... super easy... AI buddy... all ears..."
+        ❌ Using multiple emojis or overly cheerful language
+        
+        Keep it SHORT, PROFESSIONAL, and HELPFUL. Maximum 35 words.`;
+        break;/**
  * 🤖 LAPO Context-Aware Chatbot with Conversation Memory
  */
 
@@ -15,7 +43,8 @@ const userContexts = {};
 
 // 💬 Intent dictionary (for routing only)
 const intents = {
-  greeting: ["hello", "hey", "good morning", "good afternoon", "good evening", "yo", "greetings", "howdy", "hi"],
+  greeting: ["hello", "hey", "good morning", "good afternoon", "good evening", "yo", "greetings", "howdy", "hi", "how are you", "how are you doing", "what's up", "sup"],
+  identity: ["who are you", "what are you", "are you a bot", "are you human", "are you ai", "are you a robot", "what's your name", "who am i talking to", "are you real", "what do you do"],
   balance: ["balance", "account balance", "how much do i have", "check my balance", "my balance", "show balance"],
   loan: [
     "loan", "borrow", "credit", "lend", "apply for a loan", "get a loan",
@@ -198,6 +227,19 @@ async function enhanceResponse(originalResponse, intent, userContext, originalMe
       return originalResponse;
     }
     
+    // For greetings, keep enhancement minimal
+    if (intent === 'greeting') {
+      // Greeting should be VERY short - skip enhancement entirely
+      console.log("⚡ Skipping enhancement for greeting (keeping it brief)");
+      return originalResponse;
+    }
+    
+    if (intent === 'identity' && originalResponse.length < 200) {
+      // Identity response is already concise
+      console.log("⚡ Skipping enhancement for identity (already good)");
+      return originalResponse;
+    }
+    
     // Build enhancement prompt
     const enhancementPrompt = `You are refining a chatbot response to make it MORE engaging, helpful, and conversational while keeping the SAME core information.
 
@@ -220,6 +262,8 @@ ENHANCEMENT RULES:
 ✅ Keep under 1500 characters total
 ✅ If response mentions contact info, keep it EXACTLY as stated
 ✅ If response has rates/numbers, keep them EXACTLY the same
+✅ For GREETINGS: Keep very brief (max 2-3 sentences), do NOT add product info
+✅ Do NOT add information that wasn't in the original response
 
 ENHANCEMENT GUIDELINES BY INTENT:
 ${intent === 'loan' ? '- Add excitement about helping them get financing\n- Emphasize "we\'re here to support your goals"' : ''}
@@ -227,7 +271,8 @@ ${intent === 'savings' ? '- Add encouragement about building financial security\
 ${intent === 'balance' ? '- Make it feel reassuring and professional\n- Add a helpful question about what they want to do next' : ''}
 ${intent === 'branch_info' ? '- Make it easy to find branches\n- Sound helpful and accessible' : ''}
 ${intent === 'interest_rates' ? '- Present rates clearly\n- Emphasize competitiveness and flexibility' : ''}
-${intent === 'greeting' ? '- Be warm and welcoming\n- Show enthusiasm to help' : ''}
+${intent === 'greeting' ? '- This should NEVER be enhanced - pass through as-is\n- Original should already be 1-2 sentences' : ''}
+${intent === 'identity' ? '- Keep honest and friendly\n- Don\'t over-explain being an AI\n- Should already be concise' : ''}
 
 CONVERSATION CONTEXT:
 ${userContext?.conversationHistory?.length > 0 ? `This is a continuing conversation (${userContext.conversationHistory.length} previous messages). Make it feel connected to the ongoing discussion.` : 'This is a new conversation. Make a great first impression.'}
@@ -374,6 +419,16 @@ async function generateCohereResponse(message, intent, userContext) {
 - Focus: ${LAPO_KNOWLEDGE.company.focus}
 - Network: ${LAPO_KNOWLEDGE.company.branches} branches ${LAPO_KNOWLEDGE.company.presence}
 
+🤖 YOUR IDENTITY (WHO YOU ARE):
+- You are an AI-powered chatbot assistant for LAPO Microfinance Bank
+- You are NOT a human - you are an artificial intelligence created to help customers
+- Your name: "LapoBot" - always introduce yourself as LapoBot
+- Your purpose: Help customers with banking inquiries, loan applications, account information, and general LAPO services
+- Your capabilities: Answer questions, provide information, guide processes - but you CANNOT perform actual transactions
+- Your limitations: You cannot access real account data, approve loans, or perform banking operations (those require visiting a branch or speaking with human staff)
+- Be honest about being an AI - never pretend to be human
+- When asked your name, always say "LapoBot" or "I'm LapoBot"
+
 📞 OFFICIAL CONTACT INFORMATION (NEVER MAKE UP NUMBERS):
 - Website: ${LAPO_KNOWLEDGE.contact.website}
 - Phone: ${LAPO_KNOWLEDGE.contact.phone} (${LAPO_KNOWLEDGE.contact.alternativePhone})
@@ -428,17 +483,20 @@ CONVERSATION RULES:
 ✅ If user asks follow-up questions like "tell me more" or "what about that", refer to their previous intent
 ✅ Use the user's name if you learned it earlier
 ✅ Be consistent with previous answers in this conversation
+✅ NEVER add unrequested information to simple greetings
+✅ If user just says "hi" or "how are you", keep response SHORT (1-2 sentences)
 
 RESPONSE STYLE:
 ✅ Be warm, friendly, and conversational
-✅ Use 1-2 emojis maximum
-✅ Keep responses under 4 sentences unless giving detailed procedures
+✅ Use 1-2 emojis maximum per response
+✅ Keep responses under 4 sentences unless giving detailed procedures OR user explicitly asks for details
 ✅ End with a question or offer to help further
-✅ Use "Good ${timeOfDay}" for greetings
+✅ Use "Good ${timeOfDay}" for greetings only when appropriate
+✅ Do NOT volunteer product/service info unless the user's question relates to it
 
 SPECIFIC INTENT GUIDANCE:
-${intent === 'greeting' ? '- Greet warmly and ask how you can help with LAPO banking' : ''}
-${intent === 'balance' ? '- Provide a realistic balance (demo: ₦40,000-₦150,000) and ask if they need anything else' : ''}
+${intent === 'greeting' ? '- Greet warmly\n- Keep to EXACTLY 1-2 sentences (under 20 words)\n- Ask how to help\n- STOP (no product info)' : ''}
+${intent === 'identity' ? '- Be honest about being an AI\n- Explain your purpose briefly\n- Mention limitations\n- Ask how to help' : ''}
 ${intent === 'loan' ? '- Mention loan types briefly and ask which interests them' : ''}
 ${intent === 'transfer' ? '- Ask for recipient details and amount' : ''}
 ${intent === 'savings' ? '- Mention account benefits and ask if they want to know requirements' : ''}

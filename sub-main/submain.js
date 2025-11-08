@@ -6,10 +6,10 @@
 const { CohereClient } = require("cohere-ai");
 const natural = require("natural");
 require("dotenv").config();
-const { getIntentGuidance } = require("../sub-main/submain");
+const { getIntentGuidance } = require("./intent-guidance");
 
 // Example usage
-const intentGuidance = getIntentGuidance("identity");
+// const intentGuidance = getIntentGuidance("identity");
 
 const cohere = new CohereClient({
   token: process.env.SECRET_KEY,

@@ -1,5 +1,5 @@
 /**
- * 🤖 LAPO Smart Intent Classifier — Cohere-Powered Dynamic Responses
+ * 🤖 LAPO Context-Aware Chatbot with Conversation Memory
  */
 
 const { CohereClient } = require("cohere-ai");
@@ -37,62 +37,108 @@ const intents = {
   ],
 };
 
-// 📚 LAPO Knowledge Base (for Cohere context)
-const LAPO_CONTEXT = `
-ABOUT LAPO MICROFINANCE BANK:
-- Full Name: Lift Above Poverty Organization (LAPO) Microfinance Bank
-- Founded: 1987 by Godwin Ehigiamusoe
-- Transformation: Started as NGO, became microfinance bank in 2010
-- Mission: Lift people above poverty through financial inclusion
-- Focus: Low-income individuals, women, rural communities, small business owners
-- Network: 500+ branches across Nigeria
-- Customer Base: Millions of customers nationwide
-
-SERVICES:
-- Personal Loans: For individual needs
-- Business/SME Loans: For entrepreneurs and traders
-- Education Loans: For students and parents (school fees, books, accommodation)
-- Microloans: Small loans for low-income earners
-- Savings Accounts: Personal and Premium savings options
-- Fixed Deposits: Higher interest for long-term savings
-- Mobile Banking: Digital banking services
-- Transfers & Payments: Domestic money transfers
-
-INTEREST RATES (General Guidelines):
-- Personal Loans: 2.5-5% monthly (varies by amount and tenure)
-- Business/SME Loans: 2-4% monthly (competitive rates)
-- Education Loans: 2-3.5% monthly (special student rates)
-- Savings Accounts: Competitive interest on deposits
-- Fixed Deposits: Higher rates for longer commitments
-*Exact rates depend on loan amount, repayment period, customer profile, and collateral*
-
-LOAN REQUIREMENTS (Typical):
-- Valid ID (National ID, Driver's License, Passport)
-- Proof of income/business
-- Guarantor or collateral (depending on amount)
-- BVN (Bank Verification Number)
-- Passport photograph
-- Proof of address
-
-ACCOUNT OPENING REQUIREMENTS:
-- Valid government-issued ID
-- Proof of address (utility bill, etc.)
-- Passport photograph
-- Minimum opening deposit (varies by account type)
-- BVN
-
-CONTACT INFORMATION:
-- Website: www.lapo-nigeria.org
-- Phone: 0700-LAPO-MFB
-- Email: info@lapo-nigeria.org
-`;
+// 📚 LAPO Knowledge Base - Structured with EXACT information
+const LAPO_KNOWLEDGE = {
+  company: {
+    fullName: "Lift Above Poverty Organization (LAPO) Microfinance Bank",
+    founded: "1987",
+    founder: "Godwin Ehigiamusoe",
+    transformation: "Started as NGO in 1987, became microfinance bank in 2010",
+    mission: "Lift people above poverty through financial inclusion",
+    focus: "Low-income individuals, women, rural communities, small business owners",
+    branches: "500+",
+    presence: "Across Nigeria",
+  },
+  
+  contact: {
+    website: "www.lapo-nigeria.org",
+    phone: "0700-LAPO-MFB",
+    alternativePhone: "0700-5276-632",
+    email: "info@lapo-nigeria.org",
+    customerService: "Available Monday-Friday, 8AM-5PM",
+  },
+  
+  services: {
+    loans: {
+      personal: "For individual needs with flexible repayment",
+      business: "For entrepreneurs and traders (SME loans)",
+      education: "For students and parents - covers school fees, books, accommodation",
+      micro: "Small loans for low-income earners starting businesses",
+    },
+    accounts: {
+      savings: "Personal savings with competitive interest rates",
+      premium: "For high-income earners with investment opportunities",
+      fixed: "Higher interest for long-term commitments",
+    },
+    digital: {
+      mobile: "Mobile banking app available",
+      transfers: "Domestic money transfers and payments",
+      alerts: "SMS and email notifications",
+    },
+  },
+  
+  rates: {
+    loans: {
+      personal: "2.5% - 5% monthly (varies by amount and tenure)",
+      business: "2% - 4% monthly (competitive rates for SMEs)",
+      education: "2% - 3.5% monthly (special student rates)",
+      micro: "3% - 5% monthly",
+      note: "Exact rates depend on loan amount, repayment period, customer profile, and collateral provided",
+    },
+    savings: {
+      regular: "Competitive interest paid quarterly",
+      fixed: "Higher rates for 6, 12, or 24-month terms",
+      premium: "Enhanced rates for balances above ₦1,000,000",
+    },
+  },
+  
+  requirements: {
+    loan: [
+      "Valid government-issued ID (National ID, Driver's License, or International Passport)",
+      "Proof of income or business registration",
+      "Bank Verification Number (BVN)",
+      "Guarantor or collateral (depending on loan amount)",
+      "Passport photograph (2 copies)",
+      "Proof of address (utility bill not older than 3 months)",
+      "Completed application form",
+    ],
+    account: [
+      "Valid government-issued ID",
+      "Proof of address (utility bill, rent receipt)",
+      "Passport photograph (2 copies)",
+      "Bank Verification Number (BVN)",
+      "Minimum opening deposit (varies by account type: ₦1,000 - ₦10,000)",
+      "Completed account opening form",
+    ],
+  },
+  
+  processes: {
+    loanApplication: [
+      "Visit any LAPO branch or apply online",
+      "Complete the loan application form",
+      "Submit required documents",
+      "Meet with loan officer for assessment",
+      "Await approval (typically 3-7 business days)",
+      "Sign loan agreement upon approval",
+      "Receive funds in your account",
+    ],
+    accountOpening: [
+      "Visit nearest LAPO branch",
+      "Request account opening form",
+      "Submit completed form with required documents",
+      "Make minimum opening deposit",
+      "Receive account number and welcome kit",
+      "Activate mobile banking (optional)",
+    ],
+  },
+};
 
 // 🧹 Clean the message
 function preprocess(text) {
   return text.toLowerCase().replace(/[^\w\s]/gi, "").trim();
 }
 
-// 🔍 Detect intents with improved scoring
+// 🔍 Detect intents
 function detectIntents(message) {
   const lowerMsg = preprocess(message);
   const scores = {};
@@ -128,7 +174,134 @@ function detectIntents(message) {
   };
 }
 
-// 🌐 Unified Cohere Response Generator
+// 📝 Generate conversation summary from history
+function generateConversationSummary(conversationHistory) {
+  if (!conversationHistory || conversationHistory.length === 0) {
+    return "This is a new conversation.";
+  }
+  
+  const recentMessages = conversationHistory.slice(-5); // Last 5 messages
+  const summary = recentMessages.map((item, idx) => {
+    return `${idx + 1}. User asked: "${item.message}" (Intent: ${item.intent})`;
+  }).join("\n");
+  
+  return `Previous conversation:\n${summary}`;
+}
+
+// 🎨 Response Enhancement Layer - Makes responses more engaging
+async function enhanceResponse(originalResponse, intent, userContext, originalMessage) {
+  try {
+    const lowerOriginalMsg = originalMessage.toLowerCase();
+    
+    // Don't enhance if response is already well-formatted or is an error
+    if (originalResponse.includes("technical") || originalResponse.includes("try again") || originalResponse.length < 30) {
+      return originalResponse;
+    }
+    
+    // Build enhancement prompt
+    const enhancementPrompt = `You are refining a chatbot response to make it MORE engaging, helpful, and conversational while keeping the SAME core information.
+
+ORIGINAL RESPONSE TO ENHANCE:
+"${originalResponse}"
+
+USER'S QUESTION:
+"${originalMessage}"
+
+DETECTED INTENT: ${intent}
+
+ENHANCEMENT RULES:
+✅ Keep ALL factual information exactly as given (numbers, names, requirements, etc.)
+✅ Make it more conversational and friendly
+✅ Add 2-3 relevant emojis (not excessive)
+✅ Break up long text with line breaks for readability
+✅ Add a helpful next step or question at the end
+✅ If listing items, use bullet points (•) or numbered lists
+✅ Make it feel more personal and warm
+✅ Keep under 1500 characters total
+✅ If response mentions contact info, keep it EXACTLY as stated
+✅ If response has rates/numbers, keep them EXACTLY the same
+
+ENHANCEMENT GUIDELINES BY INTENT:
+${intent === 'loan' ? '- Add excitement about helping them get financing\n- Emphasize "we\'re here to support your goals"' : ''}
+${intent === 'savings' ? '- Add encouragement about building financial security\n- Mention "securing your future"' : ''}
+${intent === 'balance' ? '- Make it feel reassuring and professional\n- Add a helpful question about what they want to do next' : ''}
+${intent === 'branch_info' ? '- Make it easy to find branches\n- Sound helpful and accessible' : ''}
+${intent === 'interest_rates' ? '- Present rates clearly\n- Emphasize competitiveness and flexibility' : ''}
+${intent === 'greeting' ? '- Be warm and welcoming\n- Show enthusiasm to help' : ''}
+
+CONVERSATION CONTEXT:
+${userContext?.conversationHistory?.length > 0 ? `This is a continuing conversation (${userContext.conversationHistory.length} previous messages). Make it feel connected to the ongoing discussion.` : 'This is a new conversation. Make a great first impression.'}
+
+YOUR ENHANCED VERSION (improved formatting, tone, and structure while keeping facts identical):`;
+
+    console.log("🎨 Enhancing response...");
+    
+    const enhancementResponse = await cohere.chat({
+      model: "command-r-plus-08-2024",
+      message: enhancementPrompt,
+      temperature: 0.8, // Higher for more creative enhancement
+      maxTokens: 600,
+    });
+
+    let enhanced = enhancementResponse.text?.trim() || originalResponse;
+    
+    // Safety checks - ensure enhancement didn't break anything
+    
+    // 1. Check length (WhatsApp limit)
+    if (enhanced.length > 1600) {
+      enhanced = enhanced.substring(0, 1596) + "...";
+    }
+    
+    // 2. Ensure phone numbers weren't changed
+    const phonePattern = /0700[-\s]?LAPO[-\s]?MFB|0700[-\s]?5276[-\s]?632/gi;
+    const originalPhones = originalResponse.match(phonePattern) || [];
+    const enhancedPhones = enhanced.match(phonePattern) || [];
+    
+    if (originalPhones.length !== enhancedPhones.length) {
+      console.warn("⚠️ Phone number mismatch in enhancement, using original");
+      return originalResponse;
+    }
+    
+    // 3. Check if factual info is preserved (look for key numbers/amounts)
+    const numberPattern = /₦[\d,]+|[\d.]+%/g;
+    const originalNumbers = originalResponse.match(numberPattern) || [];
+    const enhancedNumbers = enhanced.match(numberPattern) || [];
+    
+    // If numbers are missing or different, use original
+    if (originalNumbers.length > 0 && enhancedNumbers.length === 0) {
+      console.warn("⚠️ Numbers missing in enhancement, using original");
+      return originalResponse;
+    }
+    
+    // 4. Check if response still makes sense for the question
+    const relevantKeywords = {
+      loan: ['loan', 'borrow', 'credit', 'financing'],
+      savings: ['savings', 'account', 'deposit'],
+      balance: ['balance', 'naira', '₦'],
+      branch: ['branch', 'location', 'visit'],
+      interest: ['interest', 'rate', '%'],
+    };
+    
+    const intentKeywords = relevantKeywords[intent] || [];
+    const hasRelevantContent = intentKeywords.length === 0 || 
+      intentKeywords.some(kw => enhanced.toLowerCase().includes(kw));
+    
+    if (!hasRelevantContent) {
+      console.warn("⚠️ Enhanced response lost relevance, using original");
+      return originalResponse;
+    }
+    
+    console.log("✨ Response successfully enhanced!");
+    return enhanced;
+    
+  } catch (error) {
+    console.error("❌ Enhancement error:", error.message);
+    console.log("⚠️ Falling back to original response");
+    return originalResponse; // Always fall back to original if enhancement fails
+  }
+}
+
+// 🌐 Context-Aware Cohere Response Generator
 async function generateCohereResponse(message, intent, userContext) {
   try {
     const lowerMsg = message.toLowerCase();
@@ -148,7 +321,7 @@ async function generateCohereResponse(message, intent, userContext) {
     
     const isOffTopic = offTopicKeywords.some(kw => lowerMsg.includes(kw));
     
-    // If clearly off-topic, redirect
+    // If clearly off-topic, redirect immediately
     if (isOffTopic && !lowerMsg.includes("lapo") && !lowerMsg.includes("bank") && !lowerMsg.includes("loan")) {
       const redirects = [
         `Ha! I like where your head's at! 😄 But I'm more of a banking whiz. How about we talk loans, savings, or transfers instead?`,
@@ -156,123 +329,189 @@ async function generateCohereResponse(message, intent, userContext) {
         `You know what? I wish I could help with that! 😅 But I'm laser-focused on banking. Need help with savings, loans, or balance?`,
         `Interesting! 💡 But I'm a banking assistant. Want to chat about your finances instead?`,
         `I appreciate the creativity! 😊 However, I specialize in LAPO banking. Account, loans, or transfers?`,
-        `That's outside my wheelhouse! 🏦 I'm all about banking. Can I help with savings, loans, or balance inquiries?`,
       ];
       return redirects[Math.floor(Math.random() * redirects.length)];
     }
 
-    // Get current time for greetings
+    // Generate conversation summary
+    const conversationSummary = generateConversationSummary(userContext?.conversationHistory);
+    
+    // Detect if this is likely a follow-up statement
+    const followUpIndicators = [
+      lowerMsg.includes("documents ready") || lowerMsg.includes("i have them"),
+      lowerMsg.includes("what's next") || lowerMsg.includes("what now"),
+      lowerMsg.includes("tell me more") || lowerMsg.includes("explain"),
+      lowerMsg.includes("yes") || lowerMsg.includes("okay") || lowerMsg.includes("sure"),
+      lowerMsg.includes("i'm ready") || lowerMsg.includes("let's go"),
+    ];
+    const isLikelyFollowUp = followUpIndicators.some(indicator => indicator) && 
+                            userContext?.conversationHistory?.length > 0;
+    
+    // Get current time
     const hour = new Date().getHours();
     const timeOfDay = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
-
-    // Build context-aware prompt based on intent
-    let intentGuidance = "";
     
-    switch(intent) {
-      case "greeting":
-        intentGuidance = `The user is greeting you. Respond warmly and ask how you can help with LAPO banking services today. Keep it brief (1-2 sentences). Use "Good ${timeOfDay}" appropriately.`;
-        break;
-        
-      case "balance":
-        intentGuidance = `The user wants to check their account balance. Since this is a demo/test, generate a realistic Nigerian Naira balance between ₦40,000 - ₦150,000. Format with commas. Add a friendly emoji and ask if they need anything else.`;
-        break;
-        
-      case "loan":
-        intentGuidance = `The user is interested in loans. Briefly mention the types available (Personal, Business/SME, Education, Microloans) with key benefits like flexible repayment and competitive rates. Ask if they'd like to start an application. Keep under 4 sentences.`;
-        break;
-        
-      case "transfer":
-        intentGuidance = `The user wants to transfer money. Acknowledge helpfully and ask for the recipient's details and amount. Keep it conversational and brief (2-3 sentences).`;
-        break;
-        
-      case "savings":
-        intentGuidance = `The user is interested in savings accounts. Mention benefits like competitive interest rates, flexible withdrawals, secure deposits, and mobile banking. Ask if they want to know the requirements. If they mention high income, suggest Premium Savings Account. Keep under 4 sentences.`;
-        break;
-        
-      case "branch_info":
-        intentGuidance = `The user wants branch information. Mention 500+ branches across Nigeria. Provide contact methods: website (www.lapo-nigeria.org), phone (0700-LAPO-MFB), email (info@lapo-nigeria.org). Ask if they need a specific location. Keep under 4 sentences.`;
-        break;
-        
-      case "interest_rates":
-        intentGuidance = `The user is asking about interest rates. Provide the general rate ranges from the context, but always mention rates vary based on amount, tenure, and customer profile. Offer to connect with a loan officer for exact rates. Use bullet points if listing multiple rates. Keep under 5 sentences.`;
-        break;
-        
-      default:
-        intentGuidance = `Answer the user's banking question helpfully using the LAPO context provided. Be conversational, accurate, and concise (under 4 sentences unless detailed info is needed). If you don't have specific info, offer to connect them with customer service or a loan officer.`;
-    }
+    // Add extra context hint for follow-ups
+    const contextHint = isLikelyFollowUp 
+      ? `\n⚠️ IMPORTANT: This appears to be a FOLLOW-UP message to the previous conversation. 
+         The user is continuing the discussion about ${userContext?.intent || 'their previous topic'}. 
+         Respond as if this is a continuation, not a new conversation.
+         Reference what was discussed before and guide them on next steps.`
+      : '';
 
-    // Context from conversation history
-    let conversationContext = "";
-    if (userContext && userContext.intent) {
-      conversationContext = `\n\nCONVERSATION CONTEXT: The user previously asked about ${userContext.intent}. Keep this in mind for continuity.`;
-    }
+    // Build comprehensive, hallucination-resistant prompt
+    const prompt = `You are a helpful LAPO Microfinance Bank assistant. Your responses must be accurate and based ONLY on the information provided below.
 
-    const prompt = `You are a friendly, knowledgeable LAPO Microfinance Bank assistant.
+═══════════════════════════════════════════════════════
+📋 VERIFIED LAPO INFORMATION (USE ONLY THIS DATA):
+═══════════════════════════════════════════════════════
 
-${LAPO_CONTEXT}
+🏦 COMPANY INFORMATION:
+- Full Name: ${LAPO_KNOWLEDGE.company.fullName}
+- Founded: ${LAPO_KNOWLEDGE.company.founded} by ${LAPO_KNOWLEDGE.company.founder}
+- History: ${LAPO_KNOWLEDGE.company.transformation}
+- Mission: ${LAPO_KNOWLEDGE.company.mission}
+- Focus: ${LAPO_KNOWLEDGE.company.focus}
+- Network: ${LAPO_KNOWLEDGE.company.branches} branches ${LAPO_KNOWLEDGE.company.presence}
 
-RESPONSE GUIDELINES:
-${intentGuidance}
+📞 OFFICIAL CONTACT INFORMATION (NEVER MAKE UP NUMBERS):
+- Website: ${LAPO_KNOWLEDGE.contact.website}
+- Phone: ${LAPO_KNOWLEDGE.contact.phone} (${LAPO_KNOWLEDGE.contact.alternativePhone})
+- Email: ${LAPO_KNOWLEDGE.contact.email}
+- Hours: ${LAPO_KNOWLEDGE.contact.customerService}
 
-GENERAL RULES:
-- Be warm, conversational, and helpful
-- Use emojis sparingly (1-2 per response)
-- Keep responses concise unless detailed info is needed
-- Always offer next steps or ask if they need more help
-- If asked about procedures, give clear step-by-step guidance
-- For specific rates/requirements, mention they should confirm with an officer
-- Never make up information not in the context
-- Stay focused on LAPO banking topics
-${conversationContext}
+💰 LOAN TYPES & RATES:
+${Object.entries(LAPO_KNOWLEDGE.services.loans).map(([type, desc]) => `- ${type.charAt(0).toUpperCase() + type.slice(1)}: ${desc}`).join('\n')}
 
-USER MESSAGE: "${message}"
+Interest Rates (General Guidelines):
+${Object.entries(LAPO_KNOWLEDGE.rates.loans).map(([type, rate]) => type !== 'note' ? `- ${type.charAt(0).toUpperCase() + type.slice(1)}: ${rate}` : `📌 ${rate}`).join('\n')}
+
+💵 SAVINGS ACCOUNTS:
+${Object.entries(LAPO_KNOWLEDGE.services.accounts).map(([type, desc]) => `- ${type.charAt(0).toUpperCase() + type.slice(1)}: ${desc}`).join('\n')}
+
+📱 DIGITAL SERVICES:
+${Object.entries(LAPO_KNOWLEDGE.services.digital).map(([type, desc]) => `- ${type.charAt(0).toUpperCase() + type.slice(1)}: ${desc}`).join('\n')}
+
+📄 LOAN REQUIREMENTS:
+${LAPO_KNOWLEDGE.requirements.loan.map((req, i) => `${i + 1}. ${req}`).join('\n')}
+
+📄 ACCOUNT OPENING REQUIREMENTS:
+${LAPO_KNOWLEDGE.requirements.account.map((req, i) => `${i + 1}. ${req}`).join('\n')}
+
+🔄 LOAN APPLICATION PROCESS:
+${LAPO_KNOWLEDGE.processes.loanApplication.map((step, i) => `${i + 1}. ${step}`).join('\n')}
+
+🔄 ACCOUNT OPENING PROCESS:
+${LAPO_KNOWLEDGE.processes.accountOpening.map((step, i) => `${i + 1}. ${step}`).join('\n')}
+
+═══════════════════════════════════════════════════════
+💬 CONVERSATION CONTEXT:
+═══════════════════════════════════════════════════════
+${conversationSummary}${contextHint}
+
+Current time of day: ${timeOfDay}
+Detected intent: ${intent}
+
+═══════════════════════════════════════════════════════
+🎯 YOUR RESPONSE RULES:
+═══════════════════════════════════════════════════════
+
+CRITICAL - ANTI-HALLUCINATION RULES:
+✅ ONLY use information from the sections above
+✅ If asked about contact info, use EXACT numbers/emails provided
+✅ If you don't have specific information, say "Let me connect you with a loan officer" or "Please call ${LAPO_KNOWLEDGE.contact.phone}"
+✅ NEVER make up interest rates, fees, or requirements
+✅ For balance inquiries, generate realistic amounts between ₦40,000-₦150,000 (demo only)
+
+CONVERSATION RULES:
+✅ Reference previous messages if relevant (check conversation context)
+✅ If user asks follow-up questions like "tell me more" or "what about that", refer to their previous intent
+✅ Use the user's name if you learned it earlier
+✅ Be consistent with previous answers in this conversation
+
+RESPONSE STYLE:
+✅ Be warm, friendly, and conversational
+✅ Use 1-2 emojis maximum
+✅ Keep responses under 4 sentences unless giving detailed procedures
+✅ End with a question or offer to help further
+✅ Use "Good ${timeOfDay}" for greetings
+
+SPECIFIC INTENT GUIDANCE:
+${intent === 'greeting' ? '- Greet warmly and ask how you can help with LAPO banking' : ''}
+${intent === 'balance' ? '- Provide a realistic balance (demo: ₦40,000-₦150,000) and ask if they need anything else' : ''}
+${intent === 'loan' ? '- Mention loan types briefly and ask which interests them' : ''}
+${intent === 'transfer' ? '- Ask for recipient details and amount' : ''}
+${intent === 'savings' ? '- Mention account benefits and ask if they want to know requirements' : ''}
+${intent === 'branch_info' ? '- Provide contact methods and offer to help find specific location' : ''}
+${intent === 'interest_rates' ? '- Provide rate ranges and emphasize they vary, offer to connect with officer' : ''}
+
+═══════════════════════════════════════════════════════
+USER'S CURRENT MESSAGE: "${message}"
+═══════════════════════════════════════════════════════
 
 Your response (as LAPO assistant):`;
 
+    console.log("🔑 Calling Cohere API with context-aware prompt...");
+    
     const response = await cohere.chat({
       model: "command-r-plus-08-2024",
       message: prompt,
-      temperature: 0.7,
+      temperature: 0.7, // Balanced creativity
+      maxTokens: 500, // Limit response length
     });
+
+    console.log("✅ Cohere API response received");
 
     let text = response.text?.trim() || "";
     
-    // Truncate if too long
+    // Truncate if too long (WhatsApp limit)
     if (text.length > 1600) {
       text = text.substring(0, 1596) + "...";
     }
     
-    // Validate response contains banking content
-    const bankingKeywords = [
-      "lapo", "loan", "bank", "account", "savings", "transfer", "branch",
-      "interest", "naira", "₦", "deposit", "credit", "balance", "payment"
-    ];
+    // Validate response quality
+    const hasBankingContent = ["lapo", "loan", "bank", "account", "savings", "transfer", "branch", "interest", "₦"].some(kw => text.toLowerCase().includes(kw));
     
-    const hasBankingContent = bankingKeywords.some(kw => text.toLowerCase().includes(kw));
+    // Check for potential hallucination (phone numbers not in our data)
+    const phonePattern = /\b0\d{3}[-\s]?\d{3}[-\s]?\d{4}\b/g;
+    const foundNumbers = text.match(phonePattern) || [];
+    const validNumbers = [LAPO_KNOWLEDGE.contact.phone.replace(/-/g, ''), LAPO_KNOWLEDGE.contact.alternativePhone.replace(/-/g, '')];
+    
+    for (const num of foundNumbers) {
+      const cleanNum = num.replace(/[-\s]/g, '');
+      if (!validNumbers.includes(cleanNum)) {
+        console.warn("⚠️ Potential hallucinated phone number detected:", num);
+        // Replace with correct number
+        text = text.replace(num, LAPO_KNOWLEDGE.contact.phone);
+      }
+    }
     
     if (!hasBankingContent && intent !== "greeting") {
-      // Fallback to clarification
-      return `I want to make sure I give you accurate LAPO banking information! 🏦 Could you rephrase your question? I can help with:\n• Loans & Credit\n• Savings Accounts\n• Transfers\n• Branch Locations\n• Interest Rates\n• Account Opening`;
+      return `I want to make sure I give you accurate LAPO banking information! 🏦\n\nI can help with:\n• Loans & Applications\n• Savings Accounts\n• Transfers & Payments\n• Branch Locations\n• Interest Rates\n\nWhat would you like to know?`;
     }
 
     return text;
 
   } catch (error) {
     console.error("❌ Cohere error:", error.message);
-    console.error("Error details:", error);
+    console.error("Error type:", error.name);
     
-    const errorResponses = [
-      `Oops! 😅 I had a technical hiccup. Could you try asking that again?`,
-      `Hmm, something went wrong on my end! 🤖 Mind repeating your question?`,
-      `Technical glitch! 🔧 I'm still here though — please ask again?`,
-      `My connection stumbled a bit! 😳 Can you ask me that once more?`,
-    ];
+    // Fallback responses
+    const fallbacks = {
+      greeting: `Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}! 👋 Welcome to LAPO. How can I help you today?`,
+      balance: `Your current balance is ₦${(Math.floor(Math.random() * 100000) + 40000).toLocaleString()}. 💰 Need anything else?`,
+      loan: `LAPO offers Personal, Business, Education, and Microloans with flexible terms! 🏦 Which type interests you?`,
+      transfer: `Sure! I can help with transfers. 💸 Who would you like to send money to?`,
+      savings: `LAPO Savings Accounts offer competitive rates and mobile banking! 💰 Want to know the requirements?`,
+      branch_info: `LAPO has 500+ branches across Nigeria! 🏦 Call ${LAPO_KNOWLEDGE.contact.phone} or visit ${LAPO_KNOWLEDGE.contact.website} to find your nearest branch.`,
+      interest_rates: `Interest rates: Personal (2.5-5%), Business (2-4%), Education (2-3.5%) monthly. 💰 Rates vary. Want to connect with a loan officer?`,
+    };
     
-    return errorResponses[Math.floor(Math.random() * errorResponses.length)];
+    return fallbacks[intent] || `I'm having a technical issue! 😅 Please call ${LAPO_KNOWLEDGE.contact.phone} or email ${LAPO_KNOWLEDGE.contact.email} for immediate assistance.`;
   }
 }
 
-// 🧠 Main predictor
+// 🧠 Main predictor with full context awareness
 async function Predict(message, user) {
   const lowerMsg = preprocess(message);
 
@@ -283,44 +522,97 @@ async function Predict(message, user) {
 
   if (!userContexts[user]) {
     userContexts[user] = { 
-      intent: null, 
+      intent: null,
+      userName: null,
       name: user,
       lastInteraction: Date.now(),
-      conversationHistory: []
+      conversationHistory: [],
+      sessionStart: Date.now(),
     };
+    console.log(`👤 New user session: ${user}`);
   }
 
   const context = userContexts[user];
   context.lastInteraction = Date.now();
 
-  // Handle context-based follow-ups
-  if (context.intent === "loan") {
-    if (lowerMsg.includes("yes") || lowerMsg.includes("sure") || lowerMsg.includes("ok")) {
+  // Handle context-based follow-ups with better awareness
+  
+  // 🔍 Detect implicit follow-ups even without strong intent
+  const implicitFollowUpPhrases = [
+    "i have all the documents", "documents ready", "i have the documents",
+    "i have them", "i have it", "got them ready", "everything ready",
+    "what's next", "what now", "next step", "what do i do now",
+    "how do i proceed", "where do i go", "where should i go",
+    "tell me more", "more details", "explain more", "continue",
+    "go on", "and then", "after that", "what about", "what if",
+    "yes", "okay", "sure", "alright", "proceed", "let's go", "i'm ready"
+  ];
+  
+  const isImplicitFollowUp = implicitFollowUpPhrases.some(phrase => lowerMsg.includes(phrase));
+  
+  // If this seems like a follow-up and we have conversation history
+  if (isImplicitFollowUp && context.conversationHistory.length > 0) {
+    const lastIntent = context.intent || context.conversationHistory[context.conversationHistory.length - 1]?.intent;
+    
+    console.log(`🔗 Detected implicit follow-up. Last intent: ${lastIntent}`);
+    
+    // Use the last intent to generate contextual response
+    const followUpResponse = await generateCohereResponse(
+      `User said: "${message}". This is a follow-up to previous conversation about ${lastIntent}. Respond contextually based on that topic.`,
+      lastIntent || "general",
+      context
+    );
+    
+    const enhancedFollowUp = await enhanceResponse(followUpResponse, lastIntent || "general", context, message);
+    
+    context.conversationHistory.push({
+      message,
+      intent: `${lastIntent}_followup`,
+      response: enhancedFollowUp.substring(0, 100) + "...",
+      timestamp: Date.now()
+    });
+    
+    return {
+      user,
+      intent: `${lastIntent}_followup`,
+      confidence: 0.9,
+      response: enhancedFollowUp,
+      memoryContext: {
+        displayName: context.userName || context.name,
+        prefs: { suppressGreetings: false },
+        lastIntent: lastIntent,
+        conversationLength: context.conversationHistory.length,
+      }
+    };
+  }
+  
+  if (context.intent === "loan" && context.conversationHistory.length > 0) {
+    if (lowerMsg.includes("yes") || lowerMsg.includes("sure") || lowerMsg.includes("ok") || lowerMsg.includes("proceed")) {
       const response = await generateCohereResponse(
-        "User wants to start loan application. Ask which type: Personal, Business, Education, or Microloan",
+        "The user wants to proceed with loan application. Ask which specific loan type they're interested in: Personal, Business, Education, or Microloan.",
         "loan",
         context
       );
-      context.step = "loan_type";
+      context.step = "loan_type_selection";
       return { intent: "loan_start", confidence: 1, response, user };
-    } else if (lowerMsg.includes("no") || lowerMsg.includes("not now")) {
-      context.intent = null;
+    } else if (lowerMsg.includes("more") || lowerMsg.includes("details") || lowerMsg.includes("tell me")) {
       const response = await generateCohereResponse(
-        "User declined loan application. Acknowledge politely and offer to help with other banking services",
+        "User wants more details about loans. Provide information about loan process, requirements, or rates based on conversation context.",
         "loan",
         context
       );
-      return { intent: "loan_decline", confidence: 1, response, user };
+      return { intent: "loan_details", confidence: 1, response, user };
     }
   }
 
-  if (context.intent === "savings") {
-    if (lowerMsg.includes("yes") || lowerMsg.includes("sure") || lowerMsg.includes("please") || lowerMsg.includes("ok")) {
+  if (context.intent === "savings" && context.conversationHistory.length > 0) {
+    if (lowerMsg.includes("yes") || lowerMsg.includes("sure") || lowerMsg.includes("please") || lowerMsg.includes("ok") || lowerMsg.includes("requirements")) {
       const response = await generateCohereResponse(
-        "User wants to know savings account requirements. List the documents needed and next steps",
+        "User wants to know savings account requirements. List the documents needed and the opening process.",
         "savings",
         context
       );
+      context.step = "savings_requirements";
       return { intent: "savings_application", confidence: 1, response, user };
     }
   }
@@ -334,7 +626,7 @@ async function Predict(message, user) {
   if (detectedIntents.length > 0 && confidence >= 0.55) {
     primaryIntent = detectedIntents[0];
     
-    // Question detection for greeting override
+    // Question detection
     const questionStarters = [
       "can you", "could you", "would you", "will you", "should you",
       "do you", "does", "did you", "have you", "has",
@@ -343,7 +635,7 @@ async function Predict(message, user) {
       "how", "which", "may i", "might", "shall",
       "tell me", "show me", "explain", "describe", "give me",
       "i want to know", "i need to know", "i would like to know",
-      "please tell", "can i", "could i", "may i ask", "do i need", "is it possible","who is", "what is", "where is" 
+      "please tell", "can i", "could i", "may i ask", "do i need", "is it possible"
     ];
     
     const isQuestion = message.includes("?") || 
@@ -357,37 +649,42 @@ async function Predict(message, user) {
         primaryIntent = "general";
       }
     }
-  } else {
-    finalConfidence = confidence;
   }
 
   // Update context
   context.intent = primaryIntent;
 
-  // Generate response using Cohere
+  // Generate context-aware response
   const response = await generateCohereResponse(message, primaryIntent, context);
+  
+  // 🎨 ENHANCE THE RESPONSE before sending to user
+  const enhancedResponse = await enhanceResponse(response, primaryIntent, context, message);
 
-  // Store in conversation history
+  // Store in conversation history with more details
   context.conversationHistory.push({
     message,
     intent: primaryIntent,
+    response: enhancedResponse.substring(0, 100) + "...", // Store truncated enhanced response
     timestamp: Date.now()
   });
   
-  // Keep last 10 interactions
+  // Keep last 10 interactions for context
   if (context.conversationHistory.length > 10) {
     context.conversationHistory = context.conversationHistory.slice(-10);
   }
+
+  console.log(`💬 Conversation history length: ${context.conversationHistory.length}`);
 
   return {
     user,
     intent: primaryIntent,
     confidence: finalConfidence,
-    response,
+    response: enhancedResponse, // Return enhanced version
     memoryContext: {
-      displayName: context.name,
+      displayName: context.userName || context.name,
       prefs: { suppressGreetings: false },
       lastIntent: context.intent,
+      conversationLength: context.conversationHistory.length,
     }
   };
 }

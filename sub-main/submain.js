@@ -343,7 +343,7 @@ async function Predict(message, user) {
       "how", "which", "may i", "might", "shall",
       "tell me", "show me", "explain", "describe", "give me",
       "i want to know", "i need to know", "i would like to know",
-      "please tell", "can i", "could i", "may i ask", "do i need", "is it possible"
+      "please tell", "can i", "could i", "may i ask", "do i need", "is it possible","who is", "what is", "where is" 
     ];
     
     const isQuestion = message.includes("?") || 

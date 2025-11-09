@@ -192,13 +192,14 @@ function generateConversationSummary(conversationHistory) {
 // 🎨 Response Enhancement Layer
 async function enhanceResponse(originalResponse, intent, userContext, originalMessage) {
   try {
-    // Don't enhance errors, very short responses, or greetings/identity
+    // Don't enhance errors, very short responses, or greetings/identity/branch_info
     if (originalResponse.includes("technical") || 
         originalResponse.includes("try again") || 
         originalResponse.length < 30 ||
         intent === 'greeting' ||
-        intent === 'identity') {
-      console.log("⚡ Skipping enhancement (greeting/identity/error/short)");
+        intent === 'identity' ||
+        intent === 'branch_info') {  // Don't enhance branch info - keep it simple
+      console.log(`⚡ Skipping enhancement (${intent})`);
       return originalResponse;
     }
     
@@ -210,34 +211,51 @@ INTENT: ${intent}
 
 ENHANCEMENT RULES:
 ✅ Keep ALL factual information exactly the same
-✅ Make it more conversational and friendly
-✅ Add 2-3 relevant emojis maximum
-✅ Use bullet points for lists
-✅ Add a helpful next step question
-✅ Keep under 1500 characters
+✅ Make it slightly more conversational
+✅ Add 1-2 relevant emojis MAXIMUM (not 5+)
+✅ Use bullet points ONLY if listing 3+ items
+✅ Add a brief next step question at end
+✅ Keep under 1200 characters
 ✅ Do NOT change contact info or numbers
-✅ Do NOT add information that wasn't there
+✅ Do NOT add flowery language like "treasure trove", "friendly team", "wide network"
+✅ Keep tone professional and helpful, NOT overly enthusiastic
+✅ Avoid phrases like: "happy to help", "we'd be delighted", "ready to assist"
+✅ Be direct and concise - don't fluff up simple answers
 
-${intent === 'loan' ? 'Add excitement about financing goals' : ''}
-${intent === 'savings' ? 'Add encouragement about financial security' : ''}
-${intent === 'balance' ? 'Make it reassuring, ask what they want to do next' : ''}
+${intent === 'loan' ? 'Focus on loan types and ask which they need' : ''}
+${intent === 'savings' ? 'Focus on account benefits' : ''}
+${intent === 'balance' ? 'Keep it simple, just balance + brief question' : ''}
 
-Enhanced version:`;
+Enhanced version (keep it concise and professional):`;
 
     console.log("🎨 Enhancing response...");
     
     const enhancementResponse = await cohere.chat({
       model: "command-r-plus-08-2024",
       message: enhancementPrompt,
-      temperature: 0.8,
-      maxTokens: 600,
+      temperature: 0.6,  // Lower temperature for less enthusiasm
+      maxTokens: 400,    // Shorter responses
     });
 
     let enhanced = enhancementResponse.text?.trim() || originalResponse;
     
+    // Remove overly enthusiastic elements
+    enhanced = enhanced.replace(/🌟/g, "");  // Remove star emojis
+    enhanced = enhanced.replace(/treasure trove/gi, "helpful resource");
+    enhanced = enhanced.replace(/friendly team/gi, "team");
+    enhanced = enhanced.replace(/we'd be (happy|delighted) to/gi, "we can");
+    enhanced = enhanced.replace(/always ready to assist/gi, "here to help");
+    
+    // Limit emojis to 2 maximum
+    const emojiMatches = enhanced.match(/[\u{1F300}-\u{1F9FF}]/gu) || [];
+    if (emojiMatches.length > 2) {
+      console.warn("⚠️ Too many emojis in enhancement, using original");
+      return originalResponse;
+    }
+    
     // Validation
-    if (enhanced.length > 1600) {
-      enhanced = enhanced.substring(0, 1596) + "...";
+    if (enhanced.length > 1200) {
+      enhanced = enhanced.substring(0, 1196) + "...";
     }
     
     // Check numbers preserved
@@ -247,6 +265,12 @@ Enhanced version:`;
     
     if (originalNumbers.length > 0 && enhancedNumbers.length === 0) {
       console.warn("⚠️ Numbers missing, using original");
+      return originalResponse;
+    }
+    
+    // If enhancement made it much longer, use original
+    if (enhanced.length > originalResponse.length * 1.5) {
+      console.warn("⚠️ Enhancement too verbose, using original");
       return originalResponse;
     }
     
@@ -371,9 +395,21 @@ async function generateCohereResponse(message, intent, userContext) {
       case "branch_info":
         intentGuidance = `User wants branch info.
         Do NOT introduce yourself.
-        Mention 500+ branches, provide contact.
-        Ask if they need specific location.
-        Under 4 sentences.`;
+        
+        IMPORTANT: We don't have specific branch addresses in our system.
+        Tell them:
+        - LAPO has 500+ branches across Nigeria
+        - For specific branch address (like Maryland branch), they should:
+          1. Visit www.lapo-nigeria.org (has branch locator)
+          2. Call 0700-LAPO-MFB
+          3. Email info@lapo-nigeria.org
+        
+        Be helpful but concise (under 4 sentences).
+        Don't be overly enthusiastic or use flowery language.
+        
+        CORRECT: "For the specific Maryland branch address, please visit www.lapo-nigeria.org (branch locator) or call 0700-LAPO-MFB. We have 500+ branches nationwide. Need anything else?"
+        
+        WRONG: "Great question! We'd be happy to help! LAPO has a wide network... treasure trove of info... friendly team..."`;
         break;
         
       case "interest_rates":
@@ -433,8 +469,8 @@ Your response:`;
     const response = await cohere.chat({
       model: "command-r-plus-08-2024",
       message: prompt,
-      temperature: (intent === 'greeting' || intent === 'identity') ? 0.3 : 0.6,
-      maxTokens: intent === 'greeting' ? 80 : intent === 'identity' ? 200 : 400,
+      temperature: intent === 'branch_info' ? 0.2 : (intent === 'greeting' || intent === 'identity') ? 0.3 : 0.6,
+      maxTokens: intent === 'greeting' ? 80 : intent === 'identity' ? 200 : intent === 'branch_info' ? 150 : 400,
     });
 
     let text = response.text?.trim() || "";
@@ -642,8 +678,16 @@ async function Predict(message, user) {
   // Generate response
   const response = await generateCohereResponse(message, primaryIntent, context);
   
-  // Enhance if needed
-  const enhancedResponse = await enhanceResponse(response, primaryIntent, context, message);
+  // CRITICAL: Only enhance for specific intents, skip others
+  let enhancedResponse = response;
+  
+  const shouldEnhance = ['loan', 'savings', 'transfer'].includes(primaryIntent);
+  
+  if (shouldEnhance && response.length > 100) {
+    enhancedResponse = await enhanceResponse(response, primaryIntent, context, message);
+  } else {
+    console.log(`⚡ Skipping enhancement for intent: ${primaryIntent}`);
+  }
 
   // Store history
   context.conversationHistory.push({

@@ -192,14 +192,13 @@ function generateConversationSummary(conversationHistory) {
 // 🎨 Response Enhancement Layer
 async function enhanceResponse(originalResponse, intent, userContext, originalMessage) {
   try {
-    // Don't enhance errors, very short responses, or greetings/identity/branch_info
+    // Don't enhance errors, very short responses, or greetings/identity
     if (originalResponse.includes("technical") || 
         originalResponse.includes("try again") || 
         originalResponse.length < 30 ||
         intent === 'greeting' ||
-        intent === 'identity' ||
-        intent === 'branch_info') {  // Don't enhance branch info - keep it simple
-      console.log(`⚡ Skipping enhancement (${intent})`);
+        intent === 'identity') {
+      console.log("⚡ Skipping enhancement (greeting/identity/error/short)");
       return originalResponse;
     }
     
@@ -211,51 +210,34 @@ INTENT: ${intent}
 
 ENHANCEMENT RULES:
 ✅ Keep ALL factual information exactly the same
-✅ Make it slightly more conversational
-✅ Add 1-2 relevant emojis MAXIMUM (not 5+)
-✅ Use bullet points ONLY if listing 3+ items
-✅ Add a brief next step question at end
-✅ Keep under 1200 characters
+✅ Make it more conversational and friendly
+✅ Add 2-3 relevant emojis maximum
+✅ Use bullet points for lists
+✅ Add a helpful next step question
+✅ Keep under 1500 characters
 ✅ Do NOT change contact info or numbers
-✅ Do NOT add flowery language like "treasure trove", "friendly team", "wide network"
-✅ Keep tone professional and helpful, NOT overly enthusiastic
-✅ Avoid phrases like: "happy to help", "we'd be delighted", "ready to assist"
-✅ Be direct and concise - don't fluff up simple answers
+✅ Do NOT add information that wasn't there
 
-${intent === 'loan' ? 'Focus on loan types and ask which they need' : ''}
-${intent === 'savings' ? 'Focus on account benefits' : ''}
-${intent === 'balance' ? 'Keep it simple, just balance + brief question' : ''}
+${intent === 'loan' ? 'Add excitement about financing goals' : ''}
+${intent === 'savings' ? 'Add encouragement about financial security' : ''}
+${intent === 'balance' ? 'Make it reassuring, ask what they want to do next' : ''}
 
-Enhanced version (keep it concise and professional):`;
+Enhanced version:`;
 
     console.log("🎨 Enhancing response...");
     
     const enhancementResponse = await cohere.chat({
       model: "command-r-plus-08-2024",
       message: enhancementPrompt,
-      temperature: 0.6,  // Lower temperature for less enthusiasm
-      maxTokens: 400,    // Shorter responses
+      temperature: 0.8,
+      maxTokens: 600,
     });
 
     let enhanced = enhancementResponse.text?.trim() || originalResponse;
     
-    // Remove overly enthusiastic elements
-    enhanced = enhanced.replace(/🌟/g, "");  // Remove star emojis
-    enhanced = enhanced.replace(/treasure trove/gi, "helpful resource");
-    enhanced = enhanced.replace(/friendly team/gi, "team");
-    enhanced = enhanced.replace(/we'd be (happy|delighted) to/gi, "we can");
-    enhanced = enhanced.replace(/always ready to assist/gi, "here to help");
-    
-    // Limit emojis to 2 maximum
-    const emojiMatches = enhanced.match(/[\u{1F300}-\u{1F9FF}]/gu) || [];
-    if (emojiMatches.length > 2) {
-      console.warn("⚠️ Too many emojis in enhancement, using original");
-      return originalResponse;
-    }
-    
     // Validation
-    if (enhanced.length > 1200) {
-      enhanced = enhanced.substring(0, 1196) + "...";
+    if (enhanced.length > 1600) {
+      enhanced = enhanced.substring(0, 1596) + "...";
     }
     
     // Check numbers preserved
@@ -265,12 +247,6 @@ Enhanced version (keep it concise and professional):`;
     
     if (originalNumbers.length > 0 && enhancedNumbers.length === 0) {
       console.warn("⚠️ Numbers missing, using original");
-      return originalResponse;
-    }
-    
-    // If enhancement made it much longer, use original
-    if (enhanced.length > originalResponse.length * 1.5) {
-      console.warn("⚠️ Enhancement too verbose, using original");
       return originalResponse;
     }
     
@@ -288,21 +264,17 @@ async function generateCohereResponse(message, intent, userContext) {
   try {
     const lowerMsg = message.toLowerCase();
     
-    // Off-topic detection - expanded
+    // Off-topic detection
     const offTopicKeywords = [
       "recipe", "cook", "food", "pizza", "game", "movie", "music", "sport",
       "weather", "joke", "story", "sing", "dance", "play", "netflix",
       "facebook", "instagram", "twitter", "tiktok", "youtube", "politics",
       "religion", "dating", "relationship", "health", "medicine", "doctor",
       "homework", "exam", "travel", "hotel", "flight", "car",
-      "phone", "computer", "laptop", "shopping", "fashion", "clothes",
+      "phone", "computer", "laptop", "shopping", "clothes",
       "celebrity", "artist", "actor", "actress", "film", "series", "show",
       "anime", "manga", "video", "photo", "picture", "meme", "crypto",
-      "bitcoin", "stock", "forex", "trading",
-      // Science/Physics/Math
-      "formula", "physics", "velocity", "science", "math", "equation",
-      "chemistry", "biology", "astronomy", "space", "planet", "calculate",
-      "theorem", "gravity", "force", "energy", "mass"
+      "bitcoin", "stock", "forex", "trading"
     ];
     
     const isOffTopic = offTopicKeywords.some(kw => lowerMsg.includes(kw));
@@ -344,21 +316,11 @@ async function generateCohereResponse(message, intent, userContext) {
         intentGuidance = `The user is asking who/what you are.
         
         NOW you should introduce yourself as LapoBot.
-        Keep to 2-3 sentences (under 40 words).
-        
-        MUST INCLUDE:
-        - Your name: "LapoBot"
-        - You're an AI assistant for LAPO Bank
-        - Built by the LAPO development team
-        - What you do: answer banking questions
-        - What you can't do: actual transactions
-        
+        Keep to 2-3 sentences (under 35 words).
+        State: you're LapoBot, AI for LAPO Bank, answer questions, can't do transactions.
         Be professional, not overly enthusiastic.
         
-        CORRECT: "I'm LapoBot, an AI assistant for LAPO Bank built by our development team. 🤖 I answer questions about loans and accounts, but I can't do transactions. How can I help?"
-        
-        CORRECT: "I'm LapoBot! I was built by the LAPO dev team to help with banking questions. I can guide you through our services but can't access real accounts. What do you need?"
-        
+        CORRECT: "I'm LapoBot, an AI assistant for LAPO Bank. 🤖 I answer questions about loans and accounts, but can't do transactions. How can I help?"
         WRONG: "Hey friend! I'm LapoBot here to brighten your day..."`;
         break;
         
@@ -395,21 +357,9 @@ async function generateCohereResponse(message, intent, userContext) {
       case "branch_info":
         intentGuidance = `User wants branch info.
         Do NOT introduce yourself.
-        
-        IMPORTANT: We don't have specific branch addresses in our system.
-        Tell them:
-        - LAPO has 500+ branches across Nigeria
-        - For specific branch address (like Maryland branch), they should:
-          1. Visit www.lapo-nigeria.org (has branch locator)
-          2. Call 0700-LAPO-MFB
-          3. Email info@lapo-nigeria.org
-        
-        Be helpful but concise (under 4 sentences).
-        Don't be overly enthusiastic or use flowery language.
-        
-        CORRECT: "For the specific Maryland branch address, please visit www.lapo-nigeria.org (branch locator) or call 0700-LAPO-MFB. We have 500+ branches nationwide. Need anything else?"
-        
-        WRONG: "Great question! We'd be happy to help! LAPO has a wide network... treasure trove of info... friendly team..."`;
+        Mention 500+ branches, provide contact.
+        Ask if they need specific location.
+        Under 4 sentences.`;
         break;
         
       case "interest_rates":
@@ -469,39 +419,30 @@ Your response:`;
     const response = await cohere.chat({
       model: "command-r-plus-08-2024",
       message: prompt,
-      temperature: intent === 'branch_info' ? 0.2 : (intent === 'greeting' || intent === 'identity') ? 0.3 : 0.6,
-      maxTokens: intent === 'greeting' ? 80 : intent === 'identity' ? 200 : intent === 'branch_info' ? 150 : 400,
+      temperature: (intent === 'greeting' || intent === 'identity') ? 0.3 : 0.6,
+      maxTokens: intent === 'greeting' ? 80 : intent === 'identity' ? 200 : 400,
     });
 
     let text = response.text?.trim() || "";
     
-    // CRITICAL: Remove ALL unwanted self-introductions (not just for identity)
+    // CRITICAL: Remove unwanted self-introductions
     if (intent !== 'identity') {
-      // Remove various introduction patterns
-      text = text.replace(/^.*?I'm here.*?(?:LAPO|banking).*?[.!]\s*/gi, "");
-      text = text.replace(/^.*?You've come to the right place.*?[.!]\s*/gi, "");
-      text = text.replace(/^.*?I'm LapoBot.*?[.!]\s*/gi, "");
-      text = text.replace(/Hello.*?I'm.*?LAPO.*?[.!]\s*/gi, "");
-      text = text.replace(/Hey there.*?I'm.*?[.!]\s*/gi, "");
-      text = text.replace(/Hi(!|\.)?\s*I'm.*?(?:here|assistant|AI).*?[.!]\s*/gi, "");
+      // Remove any "I'm LapoBot" or similar introductions
+      text = text.replace(/^Hello(!|\.)?\s*I'm LapoBot[,.]?\s*/gi, "");
+      text = text.replace(/^Hi(!|\.)?\s*I'm LapoBot[,.]?\s*/gi, "");
+      text = text.replace(/^Hey(!|\.)?\s*I'm LapoBot[,.]?\s*/gi, "");
+      text = text.replace(/^Good (morning|afternoon|evening)(!|\.)?\s*I'm LapoBot[,.]?\s*/gi, "Good $1! ");
+      text = text.replace(/I'm LapoBot,?\s*(here to help|an AI assistant|your AI assistant)[,.]?\s*/gi, "");
       
-      // Remove robot emojis at the start
-      text = text.replace(/^🤖️?\s*/g, "");
-      
-      // Clean up if text starts with lowercase after removal
-      if (text.length > 0 && text.charAt(0) === text.charAt(0).toLowerCase()) {
-        text = text.charAt(0).toUpperCase() + text.slice(1);
-      }
-      
-      // Final check - if still contains "I'm LapoBot", remove it
+      // If bot still introduced itself, log warning
       if (text.toLowerCase().includes("i'm lapobot") || text.toLowerCase().includes("i am lapobot")) {
-        console.warn("⚠️ Bot still introducing itself after cleaning, removing...");
+        console.warn("⚠️ Bot still introducing itself, removing...");
         text = text.replace(/I'?m LapoBot[,.]?\s*/gi, "");
         text = text.replace(/I am LapoBot[,.]?\s*/gi, "");
       }
     }
     
-    // Validation for identity responses
+    // Validation for identity
     if (intent === 'identity') {
       const bannedPhrases = [
         'brighten your day', 'super easy', 'all ears', 'buddy', 'friend',
@@ -509,19 +450,10 @@ Your response:`;
       ];
       
       const hasOverenthusiasm = bannedPhrases.some(phrase => text.toLowerCase().includes(phrase));
-      const hasDeveloperMention = text.toLowerCase().includes('dev') || 
-                                  text.toLowerCase().includes('development') ||
-                                  text.toLowerCase().includes('built by');
       
-      if (hasOverenthusiasm || (text.length > 300 && !hasDeveloperMention)) {
-        console.warn("⚠️ Identity response needs correction, using fallback");
-        text = "I'm LapoBot, an AI assistant for LAPO Bank built by our development team. 🤖 I answer questions about loans and accounts, but I can't do transactions. How can I help?";
-      }
-      
-      // If developer info is missing from identity response, add it
-      if (!hasDeveloperMention && text.toLowerCase().includes("lapobot")) {
-        text = text.replace(/(I'm LapoBot[,]?\s*(?:an AI assistant for LAPO Bank)?)/i, 
-                           "$1 built by the LAPO dev team");
+      if (hasOverenthusiasm || text.length > 250) {
+        console.warn("⚠️ Identity response too enthusiastic, using fallback");
+        text = "I'm LapoBot, an AI assistant for LAPO Bank. 🤖 I answer questions about loans and accounts, but can't do transactions. How can I help?";
       }
     }
     
@@ -548,7 +480,7 @@ Your response:`;
     
     const fallbacks = {
       greeting: `Good ${new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}! How can I help you?`,
-      identity: `I'm LapoBot, an AI assistant for LAPO Bank built by our development team. 🤖 I answer questions about loans and accounts. How can I help?`,
+      identity: `I'm LapoBot, an AI assistant for LAPO Bank. 🤖 I answer questions about loans and accounts. How can I help?`,
       balance: `Your balance is ₦${(Math.floor(Math.random() * 100000) + 40000).toLocaleString()}. 💰 Need anything else?`,
       loan: `LAPO offers Personal, Business, Education, and Microloans! 🏦 Which interests you?`,
       transfer: `Sure! Who would you like to transfer to?`,
@@ -660,9 +592,39 @@ async function Predict(message, user) {
     primaryIntent = detectedIntents[0];
     
     const questionStarters = [
-      "can you", "could you", "would you", "what", "when", "where", "why",
-      "who", "how", "which", "tell me", "show me", "explain"
-    ];
+  // Common interrogatives
+  "what", "when", "where", "why", "who", "whom", "whose", "which", "how",
+
+  // Modal question starters
+  "can you", "could you", "would you", "will you", "shall you", "should you",
+  "may you", "might you", "must you", "do you", "did you", "does it", "does this",
+  "did this", "did they", "does he", "does she", "does anyone", "did anyone",
+
+  // Imperative-like polite questions
+  "please can you", "please could you", "please would you", "would you please",
+  "could you please", "can you please",
+
+  // Informational and indirect question openers
+  "tell me", "show me", "explain", "teach me", "help me", "let me know", "do you know",
+  "do you happen to know", "any idea", "i wonder", "i was wondering", "could i ask",
+  "can i ask", "may i ask", "do you think", "do you remember",
+
+  // Conditional and contextual question leads
+  "if you could", "if you would", "if i were to ask", "in what way", "by what means",
+  "under what conditions", "for what reason", "at what time", "to what extent",
+
+  // Conversational question patterns
+  "is it", "is this", "is there", "are there", "are you", "am i", "was it", "were you",
+  "have you", "has anyone", "had you", "will it", "would it", "could it", "should it",
+  "can it", "may it", "might it",
+
+  // More nuanced conversational prompts
+  "do you think you could", "can you tell me", "could you tell me",
+  "would you mind telling me", "is it possible to", "can i know", "could i know",
+  "do you suppose", "do you believe", "do you realize", "do you see", "would it be possible",
+  "can someone", "could someone", "would anyone", "is anyone", "has it", "had it"
+];
+
     
     const isQuestion = message.includes("?") || 
       questionStarters.some(starter => lowerMsg.startsWith(starter) || lowerMsg.includes(" " + starter));
@@ -678,16 +640,8 @@ async function Predict(message, user) {
   // Generate response
   const response = await generateCohereResponse(message, primaryIntent, context);
   
-  // CRITICAL: Only enhance for specific intents, skip others
-  let enhancedResponse = response;
-  
-  const shouldEnhance = ['loan', 'savings', 'transfer'].includes(primaryIntent);
-  
-  if (shouldEnhance && response.length > 100) {
-    enhancedResponse = await enhanceResponse(response, primaryIntent, context, message);
-  } else {
-    console.log(`⚡ Skipping enhancement for intent: ${primaryIntent}`);
-  }
+  // Enhance if needed
+  const enhancedResponse = await enhanceResponse(response, primaryIntent, context, message);
 
   // Store history
   context.conversationHistory.push({

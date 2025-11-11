@@ -38,98 +38,261 @@ const intents = {
   ],
 };
 
-// 📚 LAPO Knowledge Base - Structured with EXACT information
+
+// 📚 LAPO Knowledge Base - WITH ACTUAL LAPO PRODUCTS
 const LAPO_KNOWLEDGE = {
   company: {
     fullName: "Lift Above Poverty Organization (LAPO) Microfinance Bank",
     founded: "1987",
     founder: "Godwin Ehigiamusoe",
-    transformation: "Started as NGO in 1987, became microfinance bank in 2010",
+    transformation: "Started as NGO in 1987, became microfinance bank in 2010, National Microfinance Bank in 2012",
     mission: "Lift people above poverty through financial inclusion",
-    focus: "Low-income individuals, women, rural communities, small business owners",
+    focus: "Low-income individuals, women (over 90% of clients), rural communities, small business owners",
     branches: "500+",
-    presence: "Across Nigeria",
+    presence: "34 out of 36 states in Nigeria including FCT Abuja",
   },
   
   contact: {
     website: "www.lapo-nigeria.org",
     phone: "0700-LAPO-MFB",
     alternativePhone: "0700-5276-632",
+    whatsapp: "08150553264, 0905303700",
     email: "info@lapo-nigeria.org",
     customerService: "Available Monday-Friday, 8AM-5PM",
+    support: "08139840230",
   },
   
   services: {
     loans: {
-      personal: "For individual needs with flexible repayment",
-      business: "For entrepreneurs and traders (SME loans)",
-      education: "For students and parents - covers school fees, books, accommodation",
-      micro: "Small loans for low-income earners starting businesses",
+      sme_loan: {
+        name: "SME Loan",
+        description: "Credit facility for Small and Medium Scale Enterprises across all sectors",
+        minAmount: "₦50,000",
+        maxAmount: "₦5,000,000",
+        tenure: "Flexible repayment terms",
+        interestRate: "Affordable rates (contact branch for specifics)",
+        features: [
+          "Supports businesses in all sectors",
+          "Flexible repayment schedule",
+          "No sector restriction",
+          "For business expansion"
+        ],
+        eligibility: "Valid ID (voter's card, international passport, or driver's license), business registration/proof"
+      },
+      
+      small_business_loan: {
+        name: "Small Business Loan (SBL)",
+        description: "Capital for small and medium scale entrepreneurs requiring expansion funds",
+        minAmount: "₦50,000",
+        maxAmount: "₦500,000",
+        tenure: "Short to medium term",
+        interestRate: "Competitive microfinance rates",
+        features: [
+          "Unsecured loans available",
+          "Quick processing",
+          "For business expansion",
+          "Minimal documentation"
+        ],
+        eligibility: "Valid ID, proof of business activity"
+      },
+      
+      agric_loan: {
+        name: "Agricultural Loan",
+        description: "Financing for farming activities of individuals, groups or corporate organizations",
+        amount: "Varies based on farming needs",
+        features: [
+          "For individuals and groups",
+          "Corporate organizations eligible",
+          "Supports farming activities",
+          "Seasonal financing available"
+        ],
+        eligibility: "Valid ID, proof of farming activity"
+      },
+      
+      group_loan: {
+        name: "Group Loan",
+        description: "Loans for organized groups and cooperatives",
+        features: [
+          "Group lending methodology",
+          "Shared responsibility",
+          "Community-based",
+          "Lower individual risk"
+        ],
+        eligibility: "Registered group/cooperative, valid ID for members"
+      },
+      
+      enterprise_loan: {
+        name: "Enterprise Loan",
+        description: "Loans for various enterprise needs",
+        features: [
+          "Flexible terms",
+          "Business development support",
+          "For registered enterprises"
+        ],
+        eligibility: "Valid ID, business documentation"
+      }
     },
+    
     accounts: {
-      savings: "Personal savings with competitive interest rates",
-      premium: "For high-income earners with investment opportunities",
-      fixed: "Higher interest for long-term commitments",
+      individual_savings: {
+        name: "Individual Savings Account",
+        description: "Enables clients save money to meet future needs and emergencies while encouraging savings habit",
+        minOpening: "₦1,000",
+        minBalance: "₦200",
+        interestRate: "Competitive interest on entire balance (paid quarterly/annually)",
+        features: [
+          "Earn interest on entire account balance",
+          "Saves towards future needs",
+          "Emergency fund building",
+          "Encourages savings habit",
+          "Variable interest rate"
+        ],
+        eligibility: "Valid ID, BVN, passport photo, proof of address"
+      },
+      
+      savings_plan: {
+        name: "Savings Plan Account",
+        description: "Help individuals or groups save money towards a particular project",
+        features: [
+          "Goal-oriented savings",
+          "Generate interest while saving",
+          "Individual or group savings",
+          "Project-based savings"
+        ],
+        eligibility: "Visit any LAPO branch to open"
+      },
+      
+      my_pikin_and_i: {
+        name: "My Pikin & I Account (Child Savings)",
+        description: "Child-focused savings account with high interest and life insurance for mothers",
+        features: [
+          "High interest rates",
+          "Life insurance for mother (microinsurance)",
+          "Scholarship opportunities for children",
+          "Financial literacy education",
+          "Goal-tracking tools for parents",
+          "Designed for low-income mothers"
+        ],
+        eligibility: "Parent/guardian with valid ID, child's details",
+        note: "Over 125,000 customers since 2019 relaunch"
+      },
+      
+      social_impact_deposit: {
+        name: "Social Impact Deposit (SID) Account",
+        description: "Innovative deposit platform that improves social needs of low-income individuals",
+        minDeposit: "₦200,000",
+        minTenor: "6 months",
+        interestRate: "Attractive interest rates",
+        features: [
+          "Higher returns than regular savings",
+          "Support LAPO's social mission",
+          "Empower low-income Nigerians",
+          "Scholarship nomination (₦1M+ for 2 years)",
+          "Certificate of deposit"
+        ],
+        eligibility: "Minimum deposit of ₦200,000, 6 months minimum"
+      },
+      
+      voluntary_savings: {
+        name: "Voluntary Savings Account",
+        description: "Designed for LAPO MfB clients to save even while paying back loans",
+        features: [
+          "Save while repaying loans",
+          "Flexible deposits",
+          "For existing loan clients",
+          "Builds savings discipline"
+        ],
+        eligibility: "Visit any LAPO branch"
+      },
+      
+      term_deposits: {
+        name: "Term Deposits",
+        description: "Fixed deposit accounts with higher interest rates",
+        features: [
+          "Earn more interest than traditional savings",
+          "Choose your term length",
+          "Fixed returns",
+          "Certificate issued"
+        ],
+        eligibility: "Valid ID, minimum deposit amount"
+      }
     },
+    
     digital: {
-      mobile: "Mobile banking app available",
-      transfers: "Domestic money transfers and payments",
-      alerts: "SMS and email notifications",
+      mobile: "Mobile banking app available on iOS and Android",
+      ussd: "*919# for quick banking without internet",
+      transfers: "Domestic money transfers and bill payments",
+      alerts: "SMS and email notifications for all transactions",
+      online: "Internet banking portal for account management",
     },
+    
+    other_services: {
+      micro_insurance: "Microinsurance products available",
+      micro_investment: "Micro-investment opportunities",
+      financial_education: "Financial literacy programs and workshops",
+      business_advisory: "Business development support for entrepreneurs"
+    }
   },
   
   rates: {
     loans: {
-      personal: "2.5% - 5% monthly (varies by amount and tenure)",
-      business: "2% - 4% monthly (competitive rates for SMEs)",
-      education: "2% - 3.5% monthly (special student rates)",
-      micro: "3% - 5% monthly",
-      note: "Exact rates depend on loan amount, repayment period, customer profile, and collateral provided",
+      sme: "Affordable competitive rates (contact branch for specific rates)",
+      small_business: "Competitive microfinance rates",
+      agric: "Varies based on project",
+      general_note: "LAPO never requests payment before giving out loans - Beware of scams!",
+      processing: "Processing fees apply (contact branch for details)"
     },
     savings: {
-      regular: "Competitive interest paid quarterly",
-      fixed: "Higher rates for 6, 12, or 24-month terms",
-      premium: "Enhanced rates for balances above ₦1,000,000",
+      individual: "Competitive interest paid quarterly or annually",
+      my_pikin: "High interest rates (above regular savings)",
+      social_impact: "Attractive interest rates (higher for longer tenors)",
+      term_deposits: "Higher rates based on term length",
+      note: "Interest rates are variable and subject to change. Call or visit branch for current rates as of 2024"
     },
   },
   
   requirements: {
     loan: [
-      "Valid government-issued ID (National ID, Driver's License, or International Passport)",
-      "Proof of income or business registration",
+      "Valid government-issued ID (Voter's card, International Passport, or Driver's License)",
+      "Proof of business activity or income source",
       "Bank Verification Number (BVN)",
-      "Guarantor or collateral (depending on loan amount)",
-      "Passport photograph (2 copies)",
+      "Guarantor (depending on loan amount)",
+      "Passport photograph (2 recent copies)",
       "Proof of address (utility bill not older than 3 months)",
-      "Completed application form",
+      "Completed loan application form",
+      "Business registration (for SME loans - preferred)"
     ],
     account: [
-      "Valid government-issued ID",
-      "Proof of address (utility bill, rent receipt)",
-      "Passport photograph (2 copies)",
+      "Valid government-issued ID (National ID, Driver's License, Voter's Card, or International Passport)",
+      "Proof of address (utility bill, rent receipt, or tenancy agreement)",
+      "Passport photograph (2 recent colored copies)",
       "Bank Verification Number (BVN)",
-      "Minimum opening deposit (varies by account type: ₦1,000 - ₦10,000)",
-      "Completed account opening form",
+      "Minimum opening deposit (varies: ₦200 - ₦200,000 depending on account type)",
+      "Completed account opening form"
     ],
   },
   
   processes: {
     loanApplication: [
-      "Visit any LAPO branch or apply online",
-      "Complete the loan application form",
-      "Submit required documents",
-      "Meet with loan officer for assessment",
+      "Visit any LAPO branch nationwide or apply online at www.lapo-nigeria.org",
+      "Complete the loan application form with accurate information",
+      "Submit required documents (ID, proof of business, BVN, etc.)",
+      "Meet with loan officer for assessment and interview",
+      "Loan officer conducts verification (may include site visit)",
       "Await approval (typically 3-7 business days)",
       "Sign loan agreement upon approval",
-      "Receive funds in your account",
+      "Receive funds in your account (NO upfront payment required)",
+      "Begin repayment as per agreed schedule"
     ],
     accountOpening: [
-      "Visit nearest LAPO branch",
-      "Request account opening form",
-      "Submit completed form with required documents",
-      "Make minimum opening deposit",
+      "Visit nearest LAPO branch (500+ branches in 34 states)",
+      "Request and complete account opening form",
+      "Submit completed form with required documents to customer service",
+      "Biometric capture and photograph taken",
+      "Make minimum opening deposit (₦200 - ₦200,000 depending on account type)",
       "Receive account number and welcome kit",
-      "Activate mobile banking (optional)",
+      "Activate mobile banking via USSD *919# (optional)",
+      "Start saving and earning interest!"
     ],
   },
   
@@ -143,8 +306,8 @@ const LAPO_KNOWLEDGE = {
         lga: "Kosofe",
       },
       {
-        name: "Ikeja Branch",
-        address: "45 Obafemi Awolowo Way, Ikeja, Lagos",
+        name: "Ikeja Branch (Head Office)",
+        address: "Irorun Plaza, 2nd Floor, Kudirat Abiola Way, Oregun, Ikeja",
         phone: "0803-234-5678",
         state: "Lagos",
         lga: "Ikeja",
@@ -189,18 +352,70 @@ const LAPO_KNOWLEDGE = {
         lga: "Port Harcourt",
       },
     ],
-    ibadan: [
+    edo: [
       {
-        name: "Ring Road Branch",
-        address: "34 Ring Road, Ibadan, Oyo State",
-        phone: "0803-890-1234",
-        state: "Oyo",
-        lga: "Ibadan North",
-      },
+        name: "Benin City Branch",
+        address: "Benin City, Edo State",
+        note: "Original headquarters location",
+        state: "Edo",
+      }
     ],
-    // Add more branches as needed
+    note: "LAPO has 500+ branches across 34 states in Nigeria. Visit www.lapo-nigeria.org for complete branch locator"
   },
+  
+  awards_recognition: [
+    "ProPoor Innovation Award by CGAP (2002)",
+    "Excellence in Microfinance by Grameen Foundation (2006)",
+    "Most Financially Inclusive Bank Award (December 2022)",
+    "Largest Microfinance Bank in Nigeria (25%+ market share)"
+  ]
 };
+
+function fetchFromLapoKnowledge(message) {
+  const lowerMsg = message.toLowerCase();
+  let result = "";
+
+  // Branches
+  for (const state in LAPO_KNOWLEDGE.branches) {
+    if (state === "note") continue;
+    const branches = LAPO_KNOWLEDGE.branches[state];
+    for (const branch of branches) {
+      if (lowerMsg.includes(branch.name.toLowerCase()) || lowerMsg.includes(state.toLowerCase())) {
+        result += `${branch.name} is located at ${branch.address}${branch.phone ? `. Phone: ${branch.phone}` : ""}.\n`;
+      }
+    }
+  }
+
+  // Loans
+  for (const loanType in LAPO_KNOWLEDGE.services.loans) {
+    const loan = LAPO_KNOWLEDGE.services.loans[loanType];
+    if (lowerMsg.includes(loan.name.toLowerCase()) || lowerMsg.includes(loanType.replace(/_/g, " "))) {
+      result += `${loan.name}: ${loan.description}. Min: ${loan.minAmount || "Varies"}, Max: ${loan.maxAmount || "Varies"}, Features: ${loan.features.join(", ")}.\n`;
+    }
+  }
+
+  // Savings accounts
+  for (const accountType in LAPO_KNOWLEDGE.services.accounts) {
+    const account = LAPO_KNOWLEDGE.services.accounts[accountType];
+    if (lowerMsg.includes(account.name.toLowerCase()) || lowerMsg.includes(accountType.replace(/_/g, " "))) {
+      result += `${account.name}: ${account.description}. Features: ${account.features.join(", ")}.\n`;
+    }
+  }
+
+  // General company info
+  if (lowerMsg.includes("about lapo") || lowerMsg.includes("who are you") || lowerMsg.includes("lapo bank")) {
+    const company = LAPO_KNOWLEDGE.company;
+    result += `${company.fullName}, founded in ${company.founded} by ${company.founder}. Mission: ${company.mission}. Branches: ${company.branches} across ${company.presence}.\n`;
+  }
+
+  // Contact info
+  if (lowerMsg.includes("contact") || lowerMsg.includes("phone") || lowerMsg.includes("email") || lowerMsg.includes("website")) {
+    const contact = LAPO_KNOWLEDGE.contact;
+    result += `You can reach LAPO via website: ${contact.website}, phone: ${contact.phone}, email: ${contact.email}, or WhatsApp: ${contact.whatsapp}.\n`;
+  }
+
+  return result || null; // null if nothing matched
+}
 
 // 🧹 Clean the message
 function preprocess(text) {
@@ -498,20 +713,23 @@ async function generateCohereResponse(message, intent, userContext) {
         Be conversational and concise (under 4 sentences).
         Offer to connect with customer service if needed.`;
     }
-
+    // const knowledgeText = fetchFromLapoKnowledge(message);
     const prompt = `You are an AI assistant for LAPO Microfinance Bank.
 
 LAPO INFORMATION:
 - Founded: 1987 by Godwin Ehigiamusoe
+- Founder: Godwin Ehigiamusoe
+- Transformation: Started as NGO in 1987, became microfinance bank in 2010, National Microfinance Bank in 2012
 - Mission: Lift people above poverty through financial inclusion
-- Network: 500+ branches across Nigeria
-- Services: Personal/Business/Education/Microloans, Savings Accounts, Transfers
-- Contact: www.lapo-nigeria.org, 0700-LAPO-MFB, info@lapo-nigeria.org
+- Focus: Low-income individuals, women (over 90% of clients), rural communities, small business owners
+- Network: 500+ branches across 34 out of 36 states in Nigeria including FCT Abuja
+- Services: Personal/Business/Education/Microloans, Savings Accounts, Transfers, Digital Banking, Microinsurance, Financial Education
+- Contact: www.lapo-nigeria.org, 0700-LAPO-MFB, 0700-5276-632, info@lapo-nigeria.org, WhatsApp: 08150553264, 0905303700
 
 BRANCH ADDRESSES (use these when user asks for specific branch):
 Lagos Branches:
 - Maryland: 123 Ikorodu Road, Maryland, Lagos | Phone: 0803-123-4567
-- Ikeja: 45 Obafemi Awolowo Way, Ikeja, Lagos | Phone: 0803-234-5678
+- Ikeja (Head Office): Irorun Plaza, 2nd Floor, Kudirat Abiola Way, Oregun, Ikeja | Phone: 0803-234-5678
 - Victoria Island: 78 Adeola Odeku Street, VI, Lagos | Phone: 0803-345-6789
 - Surulere: 12 Adeniran Ogunsanya Street, Surulere, Lagos | Phone: 0803-456-7890
 
@@ -520,16 +738,43 @@ Abuja Branches:
 - Garki: 23 Tafawa Balewa Way, Garki, Abuja | Phone: 0803-678-9012
 
 Other Major Cities:
-- Port Harcourt: 89 Aba Road, Port Harcourt | Phone: 0803-789-0123
+- Port Harcourt: 89 Aba Road, Port Harcourt, Rivers State | Phone: 0803-789-0123
+- Benin City: Benin City, Edo State | Original headquarters location
 - Ibadan: 34 Ring Road, Ibadan | Phone: 0803-890-1234
 
 *If user asks for a branch not listed above, direct them to www.lapo-nigeria.org or 0700-LAPO-MFB*
 
+LOANS:
+- SME Loan: ₦50,000–₦5,000,000 | Flexible terms | For all business sectors | Contact branch for rates
+- Small Business Loan (SBL): ₦50,000–₦500,000 | Quick processing | Minimal documentation
+- Agricultural Loan: Varies | For individual, group, or corporate farming activities
+- Group Loan: For organized groups/cooperatives | Shared responsibility
+- Enterprise Loan: For registered enterprises | Flexible terms & business support
+
+ACCOUNTS:
+- Individual Savings Account: Min ₦1,000, Min balance ₦200 | Earn interest, emergency fund, flexible
+- Savings Plan Account: Goal-oriented, individual or group, project-based savings
+- My Pikin & I Account (Child Savings): High interest, life insurance for mother, scholarship opportunities
+- Social Impact Deposit (SID) Account: Min deposit ₦200,000 | 6 months min | Higher returns, support social mission
+- Voluntary Savings Account: Flexible savings while repaying loans
+- Term Deposits: Fixed deposits with higher interest | Choose term length, certificate issued
+
+DIGITAL & OTHER SERVICES:
+- Mobile banking: iOS and Android
+- USSD: *919# for quick banking
+- Online: Internet banking portal
+- Transfers: Domestic money transfers and bill payments
+- Alerts: SMS and email notifications
+- Other: Microinsurance, micro-investment opportunities, financial literacy programs, business advisory
+
 RATES (General):
 - Personal Loans: 2.5-5% monthly
-- Business Loans: 2-4% monthly  
+- Business Loans: 2-4% monthly
 - Education Loans: 2-3.5% monthly
-*Exact rates vary by amount, tenure, profile
+- SME Loans: Contact branch
+- Small Business Loans: Competitive microfinance rates
+*Exact rates vary by amount, tenure, and profile
+*LAPO never requests payment before giving out loans — beware of scams!
 
 CONVERSATION CONTEXT:
 ${conversationSummary}
@@ -750,9 +995,39 @@ async function Predict(message, user) {
     primaryIntent = detectedIntents[0];
     
     const questionStarters = [
-      "can you", "could you", "would you", "what", "when", "where", "why",
-      "who", "how", "which", "tell me", "show me", "explain"
-    ];
+  // Common interrogatives
+  "what", "when", "where", "why", "who", "whom", "whose", "which", "how",
+
+  // Modal question starters
+  "can you", "could you", "would you", "will you", "shall you", "should you",
+  "may you", "might you", "must you", "do you", "did you", "does it", "does this",
+  "did this", "did they", "does he", "does she", "does anyone", "did anyone",
+
+  // Imperative-like polite questions
+  "please can you", "please could you", "please would you", "would you please",
+  "could you please", "can you please",
+
+  // Informational and indirect question openers
+  "tell me", "show me", "explain", "teach me", "help me", "let me know", "do you know",
+  "do you happen to know", "any idea", "i wonder", "i was wondering", "could i ask",
+  "can i ask", "may i ask", "do you think", "do you remember",
+
+  // Conditional and contextual question leads
+  "if you could", "if you would", "if i were to ask", "in what way", "by what means",
+  "under what conditions", "for what reason", "at what time", "to what extent",
+
+  // Conversational question patterns
+  "is it", "is this", "is there", "are there", "are you", "am i", "was it", "were you",
+  "have you", "has anyone", "had you", "will it", "would it", "could it", "should it",
+  "can it", "may it", "might it",
+
+  // More nuanced conversational prompts
+  "do you think you could", "can you tell me", "could you tell me",
+  "would you mind telling me", "is it possible to", "can i know", "could i know",
+  "do you suppose", "do you believe", "do you realize", "do you see", "would it be possible",
+  "can someone", "could someone", "would anyone", "is anyone", "has it", "had it"
+];
+
     
     const isQuestion = message.includes("?") || 
       questionStarters.some(starter => lowerMsg.startsWith(starter) || lowerMsg.includes(" " + starter));

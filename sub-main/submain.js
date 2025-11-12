@@ -1010,7 +1010,7 @@ async function Predict(message, user) {
   // Informational and indirect question openers
   "tell me", "show me", "explain", "teach me", "help me", "let me know", "do you know",
   "do you happen to know", "any idea", "i wonder", "i was wondering", "could i ask",
-  "can i ask", "may i ask", "do you think", "do you remember",
+  "can i ask", "may i ask", "do you think", "do you remember","can i",
 
   // Conditional and contextual question leads
   "if you could", "if you would", "if i were to ask", "in what way", "by what means",
@@ -1018,7 +1018,7 @@ async function Predict(message, user) {
 
   // Conversational question patterns
   "is it", "is this", "is there", "are there", "are you", "am i", "was it", "were you",
-  "have you", "has anyone", "had you", "will it", "would it", "could it", "should it",
+  "have you", "has anyone", "had you", "will it", "would it", "could it", "should it","who is",
   "can it", "may it", "might it",
 
   // More nuanced conversational prompts

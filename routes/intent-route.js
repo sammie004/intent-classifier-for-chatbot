@@ -146,26 +146,40 @@ function checkRelevance(text = "") {
 }
 
 function extractNameIfPresent(message = "") {
-  const lower = message.toLowerCase();
+  if (!message) return null;
+  const lower = message.toLowerCase().trim();
+
+  // Skip clear location patterns like "I am in..." or "I'm at..."
+  if (/^i\s*(am|'m)\s+(in|at)\b/i.test(lower)) return null;
+
+  // Name extraction patterns
   const patterns = [
-    /my name is\s+([a-zA-Z]{2,20})/i,
+    /my name is\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
     /i am\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
-    /i'm\s+([a-zA-Z]{2,20})/i,
-    /call me\s+([a-zA-Z]{2,20})/i,
-    /name:\s*([a-zA-Z]{2,20})/i
+    /i'm\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
+    /call me\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
+    /name:\s*([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i
   ];
-  
-  for (const p of patterns) {
-    const m = lower.match(p);
-    if (m && m[1]) {
-      const name = m[1].trim();
-      return name.split(' ').map(word => 
-        word.charAt(0).toUpperCase() + word.slice(1)
-      ).join(' ');
+
+  for (const pattern of patterns) {
+    const match = message.match(pattern);
+    if (match && match[1]) {
+      let name = match[1].trim();
+
+      // Remove trailing punctuation (e.g., "I'm John!" → "John")
+      name = name.replace(/[.!?,]+$/, "");
+
+      // Capitalize each part of the name
+      return name
+        .split(/\s+/)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(" ");
     }
   }
+
   return null;
 }
+
 
 function stripRepeatedGreeting(aiText = "", displayName = null, prefs = {}) {
   if (!prefs || !prefs.suppressGreetings) return aiText;

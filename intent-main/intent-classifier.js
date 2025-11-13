@@ -11,7 +11,7 @@ const trainingData = {
   greeting: ["hello", "hi", "good morning", "hey there", "what’s up"],
   balance: [
     "what is my balance",
-    "show my account balance",
+    "show my balance",
     "how much money do I have",
     "check my funds",
   ],

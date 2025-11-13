@@ -17,7 +17,7 @@ const userContexts = {};
 const intents = {
   greeting: ["hello", "hey", "good morning", "good afternoon", "good evening", "yo", "greetings", "howdy", "hi", "how are you", "how are you doing", "what's up", "sup"],
   identity: ["who are you", "what are you", "are you a bot", "are you human", "are you ai", "are you a robot", "what's your name", "who am i talking to", "are you real", "what do you do"],
-  balance: ["balance", "account balance", "how much do i have", "check my balance", "my balance", "show balance"],
+  balance: ["balance", "balance", "how much do i have", "check my balance", "my balance", "show balance"],
   loan: [
     "loan", "borrow", "credit", "lend", "apply for a loan", "get a loan",
     "microfinance", "loan application", "education loan", "business loan", "sme loan",
@@ -26,7 +26,7 @@ const intents = {
   savings: [
     "savings", "save", "savings account", "open account", "create account",
     "new account", "personal account", "deposit account", "fixed deposit",
-    "saving money", "open a", "opening a",
+    "saving money", "open a", "opening a","open","account",
   ],
   branch_info: [
     "branch", "branches", "location", "locations", "office", "offices",

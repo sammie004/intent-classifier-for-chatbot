@@ -157,6 +157,7 @@ function extractNameIfPresent(message = "") {
     /my name is\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
     /i am\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
     /i'm\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
+    /im\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
     /call me\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
     /name:\s*([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i
   ];

@@ -184,6 +184,22 @@ function extractNameIfPresent(message = "") {
   return null;
 }
 
+// ---------- LANGUAGE DETECTION FOR NIGERIAN LANGUAGES ----------
+function detectNigerianLanguage(message = "") {
+  const lower = message.toLowerCase();
+
+  const yorubaWords = ["ẹ", "rẹ", "jẹ", "ọmọ", "àwọn", "ṣé"];
+  const hausaWords = ["sannu", "lafiya", "na", "kai", "kuma"];
+  const igboWords = ["nna", "anyị", "bịa", "ihe", "ọzọ"];
+  const pidginWords = ["how far", "abeg", "wahala", "na", "you dey"];
+
+  if (yorubaWords.some(w => lower.includes(w))) return "yoruba";
+  if (hausaWords.some(w => lower.includes(w))) return "hausa";
+  if (igboWords.some(w => lower.includes(w))) return "igbo";
+  if (pidginWords.some(w => lower.includes(w))) return "pidgin";
+
+  return "english"; // default
+}
 
 function stripRepeatedGreeting(aiText = "", displayName = null, prefs = {}) {
   if (!prefs || !prefs.suppressGreetings) return aiText;
@@ -264,6 +280,9 @@ function getRandomOffTopicResponse() {
 
 // ---------- Main route ----------
 router.post("/intent", async (req, res) => {
+  const messageRaw = sanitizeText(req.body.Body || req.body.message); // Twilio sends 'Body'
+
+
   const requestStartTime = Date.now();
   
   try {
@@ -283,7 +302,10 @@ router.post("/intent", async (req, res) => {
 
     // ---------- Name handling ----------
     const maybeName = extractNameIfPresent(messageRaw);
-    
+    // DETECT LANGUAGE
+const detectedLanguage = detectNigerianLanguage(messageRaw);
+userMemory.context.language = detectedLanguage; // store in memory
+console.log(`🌍 Detected language for ${userId}: ${detectedLanguage}`);
     if (maybeName) {
       userMemory.displayName = maybeName;
       userMemory.prefs.hasGreeted = true;

@@ -715,6 +715,17 @@ async function generateCohereResponse(message, intent, userContext) {
     }
     // const knowledgeText = fetchFromLapoKnowledge(message);
     const prompt = `You are an AI assistant for LAPO Microfinance Bank.
+LANGUAGE RULES:
+- Detect the user's language automatically.
+- Supported languages: English, Yoruba, Hausa, Igbo, Nigerian Pidgin.
+- If user writes mostly in Yoruba, respond fully in Yoruba.
+- If user writes mostly in Hausa, respond fully in Hausa.
+- If user writes mostly in Igbo, respond fully in Igbo.
+- If user writes in Nigerian Pidgin, respond in Pidgin.
+- If user mixes languages, respond in the dominant language.
+- Never switch to English unless the user switches first.
+- Keep banking explanations clear and simple in ALL languages.
+
 
 LAPO INFORMATION:
 - Founded: 1987 by Godwin Ehigiamusoe

@@ -1005,39 +1005,132 @@ async function Predict(message, user) {
   if (detectedIntents.length > 0 && confidence >= 0.55) {
     primaryIntent = detectedIntents[0];
     
-    const questionStarters = [
-  // Common interrogatives
-  "what", "when", "where", "why", "who", "whom", "whose", "which", "how",
+  const questionStarters = [
+  // WH Words
+  "what",
+  "when",
+  "where",
+  "why",
+  "who",
+  "whom",
+  "whose",
+  "which",
+  "how",
+
+  // WH multi-word variants
+  "what if",
+  "what does",
+  "what do",
+  "what can",
+  "what should",
+  "what would",
+  "how do",
+  "how does",
+  "how can",
+  "how should",
+  "how would",
+  "where can",
+  "where does",
+  "when can",
+  "who can",
+  "who does",
+  "who did",
 
   // Modal question starters
-  "can you", "could you", "would you", "will you", "shall you", "should you",
-  "may you", "might you", "must you", "do you", "did you", "does it", "does this",
-  "did this", "did they", "does he", "does she", "does anyone", "did anyone",
+  "can you",
+  "could you",
+  "would you",
+  "will you",
+  "shall you",
+  "should you",
+  "may you",
+  "might you",
+  "must you",
 
-  // Imperative-like polite questions
-  "please can you", "please could you", "please would you", "would you please",
-  "could you please", "can you please",
+  // DO/BE forms
+  "do you",
+  "did you",
+  "does it",
+  "does this",
+  "do they",
+  "did it",
+  "did this",
+  "did they",
+  "does he",
+  "does she",
+  "does anyone",
+  "did anyone",
 
-  // Informational and indirect question openers
-  "tell me", "show me", "explain", "teach me", "help me", "let me know", "do you know",
-  "do you happen to know", "any idea", "i wonder", "i was wondering", "could i ask",
-  "can i ask", "may i ask", "do you think", "do you remember","can i",
+  // BE-form questions (actual interrogatives)
+  "is it",
+  "is this",
+  "is that",
+  "is there",
+  "are there",
+  "are you",
+  "am i",
+  "was it",
+  "was there",
+  "were you",
 
-  // Conditional and contextual question leads
-  "if you could", "if you would", "if i were to ask", "in what way", "by what means",
-  "under what conditions", "for what reason", "at what time", "to what extent",
+  // HAVE-form questions
+  "have you",
+  "has anyone",
+  "has it",
+  "had you",
+  "had it",
 
-  // Conversational question patterns
-  "is it", "is this", "is there", "are there", "are you", "am i", "was it", "were you",
-  "have you", "has anyone", "had you", "will it", "would it", "could it", "should it","who is",
-  "can it", "may it", "might it",
+  // Conditional question triggers (clean form)
+  "if you could",
+  "if i could",
+  "if you would",
+  "if i would",
+  "if i were to ask",
 
-  // More nuanced conversational prompts
-  "do you think you could", "can you tell me", "could you tell me",
-  "would you mind telling me", "is it possible to", "can i know", "could i know",
-  "do you suppose", "do you believe", "do you realize", "do you see", "would it be possible",
-  "can someone", "could someone", "would anyone", "is anyone", "has it", "had it"
+  // Strict informational structure starters
+  "in what way",
+  "by what means",
+  "under what conditions",
+  "for what reason",
+  "to what extent",
+  "at what time",
+
+  // Identity/information interrogatives
+  "who is",
+  "what is",
+  "where is",
+  "why is",
+  "how is",
+  "what are",
+  "who are",
+  "how are",
+  "where are",
+
+  // Yes/No modal variations
+  "could it",
+  "should it",
+  "would it",
+  "will it",
+  "may it",
+  "might it",
+  "can it",
+
+  // Negative interrogatives (still valid question forms)
+  "is it not",
+  "do you not",
+  "does it not",
+  "can you not",
+  "should you not",
+  "would you not",
+
+  // Direct WH contractions (still interrogative)
+  "what's",
+  "where's",
+  "when's",
+  "who's",
+  "how's"
 ];
+
 
     
     const isQuestion = message.includes("?") || 

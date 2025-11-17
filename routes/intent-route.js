@@ -82,6 +82,7 @@ function ensureUserRecord(rawUser) {
         pendingAction: null,
         loanType: null,
         accountType: null,
+        language: "english" // Default to English
       },
       history: [],
       prefs: { 
@@ -104,6 +105,7 @@ function ensureUserRecord(rawUser) {
         pendingAction: null,
         loanType: null,
         accountType: null,
+        language: conversationMemory[id].context.language || "english" // Preserve language
       };
       conversationMemory[id].prefs.hasGreeted = false;
       console.log(`🔄 Reset context for returning user: ${id}`);
@@ -145,22 +147,45 @@ function checkRelevance(text = "") {
   return { relevant: false, level: "none", isBanking: false };
 }
 
+// ---------- IMPROVED NAME EXTRACTION (BLOCKS PROFESSIONS) ----------
 function extractNameIfPresent(message = "") {
   if (!message) return null;
   const lower = message.toLowerCase().trim();
 
-  // Skip clear location patterns like "I am in..." or "I'm at..."
+  // Skip location patterns
   if (/^i\s*(am|'m)\s+(in|at)\b/i.test(lower)) return null;
+  
+  // BLOCK COMMON PROFESSIONS AND ROLES
+  const professionKeywords = [
+    "engineer", "developer", "programmer", "designer", "teacher", "doctor",
+    "nurse", "lawyer", "accountant", "manager", "student", "trader",
+    "driver", "farmer", "banker", "consultant", "analyst", "artist",
+    "writer", "musician", "chef", "pilot", "soldier", "officer",
+    "assistant", "secretary", "clerk", "worker", "employee", "self employed"
+  ];
+  
+  // If message contains profession keywords, don't extract name
+  if (professionKeywords.some(prof => lower.includes(prof))) {
+    console.log(`⚠️ Skipping name extraction - profession detected`);
+    return null;
+  }
+  
+  // BLOCK COMMON NON-NAME PHRASES
+  const nonNamePhrases = [
+    "a software", "a web", "a mobile", "a frontend", "a backend", "a full stack",
+    "a graphic", "a ui", "a ux", "looking for", "interested in", "working as"
+  ];
+  
+  if (nonNamePhrases.some(phrase => lower.includes(phrase))) {
+    console.log(`⚠️ Skipping name extraction - non-name phrase detected`);
+    return null;
+  }
 
   // Name extraction patterns
   const patterns = [
     /my name is\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
     /i am\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
     /i'm\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
-    /im\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
-    /i is\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
-    /the name is\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
-    /me is\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
     /call me\s+([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i,
     /name:\s*([a-zA-Z]{2,20}(?:\s+[a-zA-Z]{2,20})?)/i
   ];
@@ -169,11 +194,17 @@ function extractNameIfPresent(message = "") {
     const match = message.match(pattern);
     if (match && match[1]) {
       let name = match[1].trim();
-
-      // Remove trailing punctuation (e.g., "I'm John!" → "John")
+      
+      // Remove trailing punctuation
       name = name.replace(/[.!?,]+$/, "");
-
-      // Capitalize each part of the name
+      
+      // Final check: Make sure extracted name isn't a profession
+      if (professionKeywords.some(prof => name.toLowerCase().includes(prof))) {
+        console.log(`⚠️ Extracted name "${name}" contains profession keyword, skipping`);
+        return null;
+      }
+      
+      // Capitalize each part
       return name
         .split(/\s+/)
         .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
@@ -184,21 +215,86 @@ function extractNameIfPresent(message = "") {
   return null;
 }
 
-// ---------- LANGUAGE DETECTION FOR NIGERIAN LANGUAGES ----------
+// ---------- IMPROVED LANGUAGE DETECTION ----------
 function detectNigerianLanguage(message = "") {
   const lower = message.toLowerCase();
-
-  const yorubaWords = ["ẹ", "rẹ", "jẹ", "ọmọ", "àwọn", "ṣé"];
-  const hausaWords = ["sannu", "lafiya", "na", "kai", "kuma"];
-  const igboWords = ["nna", "anyị", "bịa", "ihe", "ọzọ"];
-  const pidginWords = ["how far", "abeg", "wahala", "na", "you dey"];
-
-  if (yorubaWords.some(w => lower.includes(w))) return "yoruba";
-  if (hausaWords.some(w => lower.includes(w))) return "hausa";
-  if (igboWords.some(w => lower.includes(w))) return "igbo";
-  if (pidginWords.some(w => lower.includes(w))) return "pidgin";
-
-  return "english"; // default
+  
+  const languagePatterns = {
+    yoruba: {
+      keywords: ["bawo", "ejo", "nibo", "kilode", "se", "ti", "ni", "mo fe", "mo ti", "o dabo", "pele", "omo"],
+      greetings: ["e kaaro", "e kaasan", "e kurole", "e kasale"],
+      specialChars: /[ẹọṣ]/,
+      weight: 0
+    },
+    hausa: {
+      keywords: ["yaya", "ina", "don me", "wane", "na", "da", "sannu", "lafiya", "nagode", "kai", "kuma"],
+      greetings: ["sannu", "ina kwana", "barka da safe", "barka da yamma"],
+      specialChars: null,
+      weight: 0
+    },
+    igbo: {
+      keywords: ["kedu", "ebee", "gini", "onye", "ndewo", "daalụ", "biko", "nke", "ka", "bu"],
+      greetings: ["kedu", "ndewo", "kedu ka i mere"],
+      specialChars: null,
+      weight: 0
+    },
+    pidgin: {
+  keywords: [
+    "wetin", "abeg", "wahala", "dey", "fit", "make", "how far", 
+    "i dey", "you dey", "no wahala",
+    // ADD YOUR KEYWORDS HERE
+    "wan", "na", "abi", "sha", "sef", "commot", "chop", 
+    "yarn", "sabi", "ginger", "kpako", "omo", "guy", "bro"
+  ],
+  greetings: [
+    "how far", "wetin dey", "how bodi", "how you dey",
+    // ADD MORE GREETINGS
+    "wetin sup", "wetin happen", "how nau", "how e de be"
+  ]
+    }
+  };
+  
+  // Score each language
+  for (const [lang, patterns] of Object.entries(languagePatterns)) {
+    // Check greetings (high weight)
+    patterns.greetings.forEach(greeting => {
+      if (lower.includes(greeting)) {
+        patterns.weight += 5;
+      }
+    });
+    
+    // Check keywords (medium weight)
+    patterns.keywords.forEach(keyword => {
+      if (lower.includes(keyword)) {
+        patterns.weight += 2;
+      }
+    });
+    
+    // Check special characters (Yoruba only)
+    if (patterns.specialChars && patterns.specialChars.test(message)) {
+      patterns.weight += 3;
+    }
+  }
+  
+  // Find language with highest weight
+  let detectedLang = "english";
+  let maxWeight = 0;
+  
+  for (const [lang, patterns] of Object.entries(languagePatterns)) {
+    if (patterns.weight > maxWeight) {
+      maxWeight = patterns.weight;
+      detectedLang = lang;
+    }
+  }
+  
+  // Only switch if confidence is high enough (weight > 3)
+  if (maxWeight < 3) {
+    detectedLang = "english";
+  }
+  
+  console.log(`🌍 Language detection: ${detectedLang} (weight: ${maxWeight})`);
+  
+  return detectedLang;
 }
 
 function stripRepeatedGreeting(aiText = "", displayName = null, prefs = {}) {
@@ -267,7 +363,7 @@ function validateResponseRelevance(response = "", userMessage = "", userMemory =
 // ---------- WITTY OFF-TOPIC RESPONSES ----------
 const WITTY_OFF_TOPIC = [
   `Ha! I like where your head's at! 😄 But I'm more of a banking whiz than anything else. How about we talk loans, savings, or transfers instead?`,
-  `That's a fun question! 🤔 But my expertise is really in LAPO banking services. Can I help you with your account, a loan, or maybe a transfer?`,
+  `That's a fun question! 🤔 But my expertise is really in LAPO banking services. Can I help with your account, a loan, or maybe a transfer?`,
   `You know what? I wish I could help with that! 😅 But I'm laser-focused on banking stuff. Need help with savings, loans, or checking your balance?`,
   `Interesting! 💡 But I'm a banking assistant through and through. Want to chat about your finances instead?`,
   `I appreciate the creativity! 😊 However, I specialize in LAPO banking. How about we discuss your account, loans, or transfers?`,
@@ -280,9 +376,6 @@ function getRandomOffTopicResponse() {
 
 // ---------- Main route ----------
 router.post("/intent", async (req, res) => {
-  const messageRaw = sanitizeText(req.body.Body || req.body.message); // Twilio sends 'Body'
-
-
   const requestStartTime = Date.now();
   
   try {
@@ -300,12 +393,45 @@ router.post("/intent", async (req, res) => {
     const { id: userId, record: userMemory } = ensureUserRecord(rawUser);
     const twiml = new MessagingResponse();
 
+    // ---------- LANGUAGE DETECTION WITH MEMORY ----------
+    let detectedLanguage = detectNigerianLanguage(messageRaw);
+
+    // If user has a stored language preference, only switch if they clearly used another language
+    if (userMemory.context.language) {
+      const storedLanguage = userMemory.context.language;
+      
+      // Only switch if user clearly used a different language (detection confidence is high)
+      if (detectedLanguage === storedLanguage) {
+        // User is still using same language, keep it
+        detectedLanguage = storedLanguage;
+      } else if (detectedLanguage === "english") {
+        // If detection says English but user had another language, keep their preference
+        // unless they explicitly used English words
+        const englishWords = ["hello", "hi", "good morning", "what", "how", "please", "thank", "help"];
+        const hasExplicitEnglish = englishWords.some(word => messageRaw.toLowerCase().includes(word));
+        
+        if (!hasExplicitEnglish) {
+          // Keep their stored language
+          detectedLanguage = storedLanguage;
+          console.log(`🔒 Keeping stored language: ${storedLanguage}`);
+        } else {
+          console.log(`🌍 User switched to English explicitly`);
+        }
+      } else {
+        console.log(`🌍 User switched language: ${storedLanguage} → ${detectedLanguage}`);
+      }
+    } else {
+      // First time user - default to English unless they clearly used another language
+      console.log(`✨ First message - detected: ${detectedLanguage}`);
+    }
+
+    // Store the language
+    userMemory.context.language = detectedLanguage;
+    console.log(`🌍 Final language for ${userId}: ${detectedLanguage}`);
+
     // ---------- Name handling ----------
     const maybeName = extractNameIfPresent(messageRaw);
-    // DETECT LANGUAGE
-const detectedLanguage = detectNigerianLanguage(messageRaw);
-userMemory.context.language = detectedLanguage; // store in memory
-console.log(`🌍 Detected language for ${userId}: ${detectedLanguage}`);
+    
     if (maybeName) {
       userMemory.displayName = maybeName;
       userMemory.prefs.hasGreeted = true;
@@ -333,9 +459,9 @@ console.log(`🌍 Detected language for ${userId}: ${detectedLanguage}`);
       return res.type("text/xml").send(twiml.toString());
     }
 
-    // ---------- AI Prediction ----------
-    console.log(`🤖 Sending to AI: "${messageRaw}"`);
-    const reply = await Predict(messageRaw, userId);
+    // ---------- AI Prediction WITH LANGUAGE PARAMETER ----------
+    console.log(`🤖 Sending to AI with language: ${detectedLanguage}`);
+    const reply = await Predict(messageRaw, userId, detectedLanguage);
     const replyConfidence = typeof reply.confidence === "number" ? reply.confidence : 0;
     
     console.log(`📊 AI Response - Intent: ${reply.intent}, Confidence: ${replyConfidence}`);
@@ -356,6 +482,7 @@ console.log(`🌍 Detected language for ${userId}: ${detectedLanguage}`);
       aiReply: reply.response,
       aiIntent: reply.intent,
       aiConfidence: replyConfidence,
+      language: detectedLanguage,
       contextSnapshot: { ...userMemory.context } // Store context at this point
     });
     
@@ -498,7 +625,7 @@ console.log(`🌍 Detected language for ${userId}: ${detectedLanguage}`);
     twiml.message(enhancedResponse);
     
     const processingTime = Date.now() - requestStartTime;
-    console.log(`✅ Response sent to ${userId} in ${processingTime}ms`);
+    console.log(`✅ Response sent to ${userId} in ${processingTime}ms (Language: ${detectedLanguage})`);
     console.log(`💬 Response: "${enhancedResponse.substring(0, 100)}..."`);
     
     return res.type("text/xml").send(twiml.toString());
